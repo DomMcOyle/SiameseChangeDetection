@@ -47,45 +47,48 @@ def generate_set(img1, img2, labels, unknown_label):
     return np.asarray(pair_set), np.asarray(label_list)
 
 
-def load_aviris_dataset():
+def load_aviris_dataset(pair="ba"):
     """
     function loading the AVIRIS dataset stored in the path hardcoded in the "config.py" module
+    :param pair: a string, "ba" or "sb" indicating which pair of images to load (Bay Area or Santa Barbara)
     :return: a list containing:
         - the pairs of scaled pixel from the Bay Area images
         - the labels for the pixel pairs from the Bay Area images
         - the pairs of scaled pixel from the Santa Barbara images
         - the labels for the pixel pairs from the Santa Barbara images
     """
-    print("|loading bay area...|")
-    ba1 = read_mat(cfg.BAYAREA_A_PATH)
-    ba2 = read_mat(cfg.BAYAREA_B_PATH)
-    bal = read_mat(cfg.BAYAREA_LABEL_PATH)
+    if pair == "ba":
+        print("|loading bay area...|")
+        ba1 = read_mat(cfg.BAYAREA_A_PATH)
+        ba2 = read_mat(cfg.BAYAREA_B_PATH)
+        bal = read_mat(cfg.BAYAREA_LABEL_PATH)
 
-    # linearization
-    ba1 = np.reshape(ba1, (ba1.shape[0] * ba1.shape[1], ba1.shape[2]))
-    ba2 = np.reshape(ba2, (ba2.shape[0] * ba2.shape[1], ba2.shape[2]))
+        # linearization
+        ba1 = np.reshape(ba1, (ba1.shape[0] * ba1.shape[1], ba1.shape[2]))
+        ba2 = np.reshape(ba2, (ba2.shape[0] * ba2.shape[1], ba2.shape[2]))
 
-    # minmax scaling
-    ba1, ba2 = minmax_pair(ba1, ba2)
-    print("|pairing bay area...|")
-    # generating the set
-    ba_pairs, ba_labels = generate_set(ba1, ba2, refactor_labels(bal), -1)
+        # minmax scaling
+        ba1, ba2 = minmax_pair(ba1, ba2)
+        print("|pairing bay area...|")
+        # generating the set
+        ba_pairs, ba_labels = generate_set(ba1, ba2, refactor_labels(bal), -1)
+        return ba_pairs, ba_labels
+    elif pair == "sb":
+        print("|loading santa barbara...|")
+        sb1 = read_mat(cfg.SBARBARA_A_PATH)
+        sb2 = read_mat(cfg.SBARBARA_B_PATH)
+        sbl = read_mat(cfg.SBARBARA_LABEL_PATH)
 
-    """
-    print("|loading santa barbara...|")
-    sb1 = read_mat(cfg.SBARBARA_A_PATH)
-    sb2 = read_mat(cfg.SBARBARA_B_PATH)
-    sbl = read_mat(cfg.SBARBARA_LABEL_PATH)
+        # linearization
 
-    # linearization
+        sb1 = np.reshape(sb1, (sb1.shape[0] * sb1.shape[1], sb1.shape[2]))
+        sb2 = np.reshape(sb2, (sb2.shape[0] * sb2.shape[1], sb2.shape[2]))
 
-    sb1 = np.reshape(sb1, (sb1.shape[0] * sb1.shape[1], sb1.shape[2]))
-    sb2 = np.reshape(sb2, (sb2.shape[0] * sb2.shape[1], sb2.shape[2]))
-
-    # minmax scaling
-    sb1, sb2 = minmax_pair(sb1, sb2)
-    print("|pairing santa barbara...|")
-    #generating the set
-    sb_pairs, sb_labels = generate_set(sb1, sb2, refactor_labels(sbl), -1)
-    """
-    return ba_pairs, ba_labels#, sb_pairs, sb_labels
+        # minmax scaling
+        sb1, sb2 = minmax_pair(sb1, sb2)
+        print("|pairing santa barbara...|")
+        #generating the set
+        sb_pairs, sb_labels = generate_set(sb1, sb2, refactor_labels(sbl), -1)
+        return sb_pairs, sb_labels
+    else:
+        raise ValueError("pair arg must be 'ba' or 'sb'")

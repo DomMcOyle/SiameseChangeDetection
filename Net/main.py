@@ -2,7 +2,7 @@ import DataProcessing as dp
 import Siamese as s
 
 if __name__ == '__main__':
-    x_train, y_train = dp.load_aviris_dataset()
+    x_train, y_train = dp.load_aviris_dataset("ba")
 
     model = s.siamese_model(x_train[0][0].shape)
 
