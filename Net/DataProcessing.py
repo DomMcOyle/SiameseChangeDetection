@@ -56,6 +56,7 @@ def load_aviris_dataset():
         - the pairs of scaled pixel from the Santa Barbara images
         - the labels for the pixel pairs from the Santa Barbara images
     """
+    print("|loading bay area...|")
     ba1 = read_mat(cfg.BAYAREA_A_PATH)
     ba2 = read_mat(cfg.BAYAREA_B_PATH)
     bal = read_mat(cfg.BAYAREA_LABEL_PATH)
@@ -66,10 +67,12 @@ def load_aviris_dataset():
 
     # minmax scaling
     ba1, ba2 = minmax_pair(ba1, ba2)
-
+    print("|pairing bay area...|")
     # generating the set
     ba_pairs, ba_labels = generate_set(ba1, ba2, refactor_labels(bal), -1)
 
+    """
+    print("|loading santa barbara...|")
     sb1 = read_mat(cfg.SBARBARA_A_PATH)
     sb2 = read_mat(cfg.SBARBARA_B_PATH)
     sbl = read_mat(cfg.SBARBARA_LABEL_PATH)
@@ -81,8 +84,8 @@ def load_aviris_dataset():
 
     # minmax scaling
     sb1, sb2 = minmax_pair(sb1, sb2)
-
+    print("|pairing santa barbara...|")
     #generating the set
     sb_pairs, sb_labels = generate_set(sb1, sb2, refactor_labels(sbl), -1)
-
-    return ba_pairs, ba_labels, sb_pairs, sb_labels
+    """
+    return ba_pairs, ba_labels#, sb_pairs, sb_labels
