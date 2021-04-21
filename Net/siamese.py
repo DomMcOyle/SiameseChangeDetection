@@ -1,5 +1,5 @@
 import numpy as np
-from keras.layers import Dense, Input, Lambda
+from keras.layers import Dense, Input, Lambda, Dropout
 from keras.models import Model
 import keras.backend as kb
 import tensorflow as tf
@@ -14,6 +14,7 @@ def siamese_base_model(input_shape):
     print(input_shape)
     input_layer = Input(input_shape)
     hidden = Dense(224, activation='relu')(input_layer)
+    hidden = Dropout(0.2)(hidden)
     hidden = Dense(128, activation='relu')(hidden)
     hidden = Dense(64, activation='relu')(hidden)
     return Model(input_layer, hidden)
