@@ -29,6 +29,7 @@ def minmax_pair(img1, img2):
 
 def refactor_labels(labels):
     """
+    TODO: passare in input file di configurazione per il mapping
     Refactors the label of the AVIRIS dataset setting "1" as changed, "0" as not-changed (substituting "2")
     and "-1" (substituting "0") as unknown
     """
