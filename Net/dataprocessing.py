@@ -8,6 +8,7 @@ def read_mat(path, label="HypeRvieW"):
     function returning an image
     read from a .mat file in "path"
     """
+    #TODO: trova modo più carino per la label
     mat = sio.loadmat(path)
     return mat[label]
 
