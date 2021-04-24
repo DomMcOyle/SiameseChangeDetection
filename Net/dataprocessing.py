@@ -1,14 +1,15 @@
 import sklearn.preprocessing as sp
 import numpy as np
 import scipy.io as sio
-import config as cfg
+import configparser
+import config
 
-def read_mat(path, label="HypeRvieW"):
+
+def read_mat(path, label):
     """
     function returning an image
     read from a .mat file in "path"
     """
-    #TODO: trova modo più carino per la label
     mat = sio.loadmat(path)
     return mat[label]
 
@@ -39,58 +40,65 @@ def refactor_labels(labels):
 
 
 def generate_set(img1, img2, labels, unknown_label):
-    pair_set = []
+    """
+    Takes the two images, the respective labels and the value of the label for the unlabeled pixels and returns
+    a 2-dim array containing the pair of pixel before/after and a 1-dim array containing the label for the pair.
+    Every unlabeled pixel pair is removed.
+    :param img1: a 2-dim numpy array of shape (height x width, spectral bands)
+    :param img2: a 2-dim numpy array of shape (height x width, spectral bands) - the same shape as img1
+    :param labels: a 1-dim numpy array containing a label for each pair
+    :param unknown_label: the value of the "unlabeled pixels" label
+    :return: a 3-dim numpy array of pixel pairs of shape (height x width, 2, spectral bands) and the "labels" array
+            without "unknown" labels
+    """
+    pair_list = []
     label_list = []
     # TODO: check if there's a more efficient method
     for i in range(0, img1.shape[0]):
         if labels[i] != unknown_label:
-            pair_set.append([img1[i], img2[i]])
+            pair_list.append([img1[i], img2[i]])
             label_list.append(labels[i])
-    return np.asarray(pair_set), np.asarray(label_list)
+    return np.asarray(pair_list), np.asarray(label_list)
 
 
-def load_aviris_dataset(pair="ba"):
+def load_dataset(name, config):
     """
-    function loading the AVIRIS dataset stored in the path hardcoded in the "config.py" module
-    :param pair: a string, "ba" or "sb" indicating which pair of images to load (Bay Area or Santa Barbara)
-    :return: a list containing:
-        - the pairs of scaled pixel from the Bay Area images
-        - the labels for the pixel pairs from the Bay Area images
-        - the pairs of scaled pixel from the Santa Barbara images
-        - the labels for the pixel pairs from the Santa Barbara images
+    function loading a two satellite multi-spectral or hyper-spectral images as 3-dim numpy arrays of shape
+    (height, width, spectral bands) and the respective pixel-wise labels as a 2-dim numpy array (height, width)
+    :param name: the name of the dataset to be loaded. If it doesn't exist, an exception is raised
+    :param config: a config parser instance pre-loaded
+    :return: a list containing
+        - the first image
+        - the second image
+        - the labels
     """
-    if pair == "ba":
-        print("|loading bay area...|")
-        ba1 = read_mat(cfg.BAYAREA_A_PATH)
-        ba2 = read_mat(cfg.BAYAREA_B_PATH)
-        bal = read_mat(cfg.BAYAREA_LABEL_PATH)
+    if name not in config.sections():
+        raise ValueError(name + " dataset not available")
+    print("Info: LOADING FIRST IMAGE...")
+    imgA = read_mat(config[name].get("imgAPath"), config[name].get["matLabel"])
 
-        # linearization
-        ba1 = np.reshape(ba1, (ba1.shape[0] * ba1.shape[1], ba1.shape[2]))
-        ba2 = np.reshape(ba2, (ba2.shape[0] * ba2.shape[1], ba2.shape[2]))
+    print("Info: LOADING SECOND IMAGE...")
+    imgB = read_mat(config[name].get("imgBPath"), config[name].get["matLabel"])
 
-        # minmax scaling
-        ba1, ba2 = minmax_pair(ba1, ba2)
-        print("|pairing bay area...|")
-        # generating the set
-        ba_pairs, ba_labels = generate_set(ba1, ba2, refactor_labels(bal), -1)
-        return ba_pairs, ba_labels
-    elif pair == "sb":
-        print("|loading santa barbara...|")
-        sb1 = read_mat(cfg.SBARBARA_A_PATH)
-        sb2 = read_mat(cfg.SBARBARA_B_PATH)
-        sbl = read_mat(cfg.SBARBARA_LABEL_PATH)
+    print("Info: LOADING LABELS...")
+    label = read_mat(config[name].get("labelPath"), config[name].get["matLabel"])
 
-        # linearization
+    return imgA, imgB, label
 
-        sb1 = np.reshape(sb1, (sb1.shape[0] * sb1.shape[1], sb1.shape[2]))
-        sb2 = np.reshape(sb2, (sb2.shape[0] * sb2.shape[1], sb2.shape[2]))
 
-        # minmax scaling
-        sb1, sb2 = minmax_pair(sb1, sb2)
-        print("|pairing santa barbara...|")
-        #generating the set
-        sb_pairs, sb_labels = generate_set(sb1, sb2, refactor_labels(sbl), -1)
-        return sb_pairs, sb_labels
-    else:
-        raise ValueError("pair arg must be 'ba' or 'sb'")
+def preprocessing(imgA, imgB, label, name, config):
+    """
+
+    :param imgA:
+    :param imgB:
+    :param label:
+    :param name:
+    :param config:
+    :return:
+    """
+    """
+    reshape delle immagini
+    refactor delle label
+    generazione delle coppie
+    minmaxing
+    """
