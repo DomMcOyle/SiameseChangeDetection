@@ -48,7 +48,7 @@ def contrastive_loss(y_true, y_pred, margin=1):
     y_true = tf.cast(y_true, y_pred.dtype)
     square_pred = kb.square(y_pred)
     square_margin = kb.square(kb.maximum(margin - y_pred, 0))
-    return kb.mean(y_true*square_pred + (1-y_true)*square_margin)
+    return kb.mean(y_true * square_pred + (1 - y_true) * square_margin)
 
 
 def accuracy(y_true, y_pred):
