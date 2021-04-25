@@ -29,14 +29,39 @@ def minmax_pair(img1, img2):
     return np.split(scaled, 2)
 
 
-def refactor_labels(labels):
+def refactor_labels(labels, conf):
     """
-    TODO: passare in input file di configurazione per il mapping
-    Refactors the label of the AVIRIS dataset setting "1" as changed, "0" as not-changed (substituting "2")
-    and "-1" (substituting "0") as unknown
+    Refactors the label of a dataset setting "0" as changed, "1" as not-changed and "2" as unknown.
+    this helps to have a common symobol code for the labels
+    :param labels: a numpy integer array containing the labels for a image pair
+    :param conf: a ConfigParser Section containing the label specific values
+    :return: the input labels refactored as described
     """
-    labels = np.reshape(labels, labels.shape[0]*labels.shape[1])
-    return np.where(labels == 0, -1, 2-labels)
+    # flag indicating whether a label must be changed
+    c_set = False
+    uc_set = False
+    un_set = False
+
+    if int(conf.get("changedLabel")) != config.CHANGED_LABEL:
+        c_indexes = np.where(labels == int(conf.get("changedLabel")))
+        c_set = True
+
+    if int(conf.get("unchangedLabel")) != config.UNCHANGED_LABEL:
+        uc_indexes = np.where(labels == int(conf.get("unchangedLabel")))
+        uc_set = True
+
+    if int(conf.get("unknownLabel")) != config.UNKNOWN_LABEL:
+        un_indexes = np.where(labels == int(conf.get("unknownLabel")))
+        un_set = True
+
+    if c_set:
+        labels[c_indexes] = config.CHANGED_LABEL
+    if uc_set:
+        labels[uc_indexes] = config.UNCHANGED_LABEL
+    if un_set:
+        labels[un_indexes] = config.UNKNOWN_LABEL
+
+    return labels
 
 
 def generate_set(img1, img2, labels, unknown_label):
@@ -61,44 +86,62 @@ def generate_set(img1, img2, labels, unknown_label):
     return np.asarray(pair_list), np.asarray(label_list)
 
 
-def load_dataset(name, config):
+def load_dataset(name, conf):
     """
     function loading a two satellite multi-spectral or hyper-spectral images as 3-dim numpy arrays of shape
     (height, width, spectral bands) and the respective pixel-wise labels as a 2-dim numpy array (height, width)
     :param name: the name of the dataset to be loaded. If it doesn't exist, an exception is raised
-    :param config: a config parser instance pre-loaded
+    :param conf: a config parser instance pre-loaded
     :return: a list containing
         - the first image
         - the second image
-        - the labels
+        - the refactored labels (see refactor_labels())
     """
-    if name not in config.sections():
+    if name not in conf.sections():
         raise ValueError(name + " dataset not available")
-    print("Info: LOADING FIRST IMAGE...")
-    imgA = read_mat(config[name].get("imgAPath"), config[name].get["matLabel"])
+    if ".mat" in conf[name].get("imgAPath"):
+        print("Info: LOADING FIRST IMAGE...")
+        imgA = read_mat(conf[name].get("imgAPath"), conf[name].get("matLabel"))
 
-    print("Info: LOADING SECOND IMAGE...")
-    imgB = read_mat(config[name].get("imgBPath"), config[name].get["matLabel"])
+        print("Info: LOADING SECOND IMAGE...")
+        imgB = read_mat(conf[name].get("imgBPath"), conf[name].get("matLabel"))
 
-    print("Info: LOADING LABELS...")
-    label = read_mat(config[name].get("labelPath"), config[name].get["matLabel"])
+        print("Info: LOADING LABELS...")
+        label = read_mat(conf[name].get("labelPath"), conf[name].get("matLabel"))
+        label = refactor_labels(label, conf[name])
+    else:
+        raise NotImplementedError("Error: CANNOT LOAD NON-MAT FILES")
 
     return imgA, imgB, label
 
 
-def preprocessing(imgA, imgB, label, name, config):
+def preprocessing(imgA, imgB, label):
+    """
+    Function that takes in input a pair of images and a pixel-wise label map and returns
+    an array of minmaxscaled pixel pairs and an array of labels. All the pixel pairs labeled as "unknown" are discarded
+    :param imgA: a 3-dim numpy array of shape (height, width, spectral bands) from where the first pixel of the pair
+                will be extracted
+    :param imgB: a 3-dim numpy array of shape (height, width, spectral bands) from where the second pixel of the pair
+                will be extracted
+    :param label: a 2-dim array of shape (height, width) containing the label for each pixel pair. The array must be
+                refactored as described in (refactor_labels()) before use
+    :return:a list containing:
+            - an array containing the labeled pairs of pixels from the images
+            - an array containing the labels of the respective pairs
     """
 
-    :param imgA:
-    :param imgB:
-    :param label:
-    :param name:
-    :param config:
-    :return:
-    """
-    """
-    reshape delle immagini
-    refactor delle label
-    generazione delle coppie
-    minmaxing
-    """
+    print("Info: STARTING PREPROCESSING...")
+    # linearization
+    imgA = np.reshape(imgA, (imgA.shape[0] * imgA.shape[1], imgA.shape[2]))
+    imgB = np.reshape(imgB, (imgB.shape[0] * imgB.shape[1], imgB.shape[2]))
+
+    # min maxing
+    imgA, imgB = minmax_pair(imgA, imgB)
+
+    # linearization of the labels
+    label = np.reshape(label, label.shape[0] * label.shape[1])
+
+    # pair generation
+    print("Info: STARTING PAIRING PROCEDURE...")
+    pairs, label = generate_set(imgA, imgB, label, config.UNKNOWN_LABEL)
+    return pairs, label

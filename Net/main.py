@@ -6,6 +6,13 @@ import numpy as np
 
 if __name__ == '__main__':
     """
+    nuovo workflow per il data
+    - creare il configparser
+    - caricare il dataset
+    - eseguire il preprocessing
+    
+    """
+    """
     x_train, y_train = dp.load_aviris_dataset("sb")
 
     model = s.siamese_model(x_train[0][0].shape)

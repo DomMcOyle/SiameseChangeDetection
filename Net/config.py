@@ -1,4 +1,7 @@
-import os
-
 DATA_CONFIG_PATH = "dataset.conf"
+
+# Constants
+CHANGED_LABEL = 0
+UNCHANGED_LABEL = 1
+UNKNOWN_LABEL = 2
 
