@@ -1,5 +1,5 @@
 DATA_CONFIG_PATH = "dataset.conf"
-
+MODEL_SAVE_PATH = "model/"
 # Constants
 CHANGED_LABEL = 0
 UNCHANGED_LABEL = 1
