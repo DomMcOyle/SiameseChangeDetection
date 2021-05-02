@@ -4,6 +4,7 @@ import configparser
 import config
 import scipy.io as sio
 import PIL
+import os
 
 
 def read_mat(path, label):
@@ -101,37 +102,57 @@ def load_dataset(name, conf):
     """
     if name not in conf.sections():
         raise ValueError(name + " dataset not available")
-    if ".mat" in conf[name].get("imgAPath"):
-        print("Info: LOADING FIRST IMAGE...")
-        imgA = read_mat(conf[name].get("imgAPath"), conf[name].get("matLabel"))
 
-        print("Info: LOADING SECOND IMAGE...")
-        imgB = read_mat(conf[name].get("imgBPath"), conf[name].get("matLabel"))
+    print("Info: LOADING FIRST IMAGES...")
+    imgAList = []
+    beforepath = conf[name].get("imgAPath")
+    for file in os.listdir(beforepath):
+        imgAList.append(load_image(beforepath + os.sep + file, conf[name]))
+
+    print("Info: LOADING SECOND IMAGES...")
+    imgBList = []
+    afterpath = conf[name].get("imgBPath")
+    for file in os.listdir(afterpath):
+        imgBList.append(load_image(afterpath + os.sep + file, conf[name]))
+
+    print("Info: LOADING LABELS...")
+    labellist = []
+    labelpath = conf[name].get("labelPath")
+    for file in os.listdir(labelpath):
+        labellist.append(load_label(labelpath + os.sep + file, conf[name]))
+
+    return imgAList, imgBList, labellist
+
+
+def load_image(path, conf_section):
+    if ".mat" in path:
+        return read_mat(path, conf_section.get("matLabel"))
     else:
         raise NotImplementedError("Error: CANNOT LOAD NON-MAT FILES")
 
-    print("Info: LOADING LABELS...")
-    if ".mat" in conf[name].get("labelPath"):
 
-        label = read_mat(conf[name].get("labelPath"), conf[name].get("matLabel"))
-    elif ".png" or ".tif" in conf[name].get("labelPath"):
+def load_label(path, conf_section):
+    if ".mat" in path:
 
-        label = PIL.Image.open(conf[name].get("labelPath"))
+        return read_mat(path, conf_section.get("matLabel"))
+    elif ".png" or ".tif" in path:
+
+        return PIL.Image.open(path)
+
     else:
         raise NotImplementedError("Error: CANNOT LOAD LABEL FILE FORMAT")
-    return imgA, imgB, label
 
 
-def preprocessing(imgA, imgB, label, conf_section):
+def preprocessing(limgA, limgB, llabel, conf_section):
     """
     Function that takes in input a pair of images and a pixel-wise label map and returns
     an array of minmaxscaled pixel pairs and an array of refactored labels.
     All the pixel pairs labeled as "unknown" are discarded
-    :param imgA: a 3-dim numpy array of shape (height, width, spectral bands) from where the first pixel of the pair
+    :param limgA: a list of 3-dim numpy array of shape (height, width, spectral bands) from where the first pixel of the pair
                 will be extracted
-    :param imgB: a 3-dim numpy array of shape (height, width, spectral bands) from where the second pixel of the pair
+    :param limgB: a list of 3-dim numpy array of shape (height, width, spectral bands) from where the second pixel of the pair
                 will be extracted
-    :param label: a 2-dim array of shape (height, width) containing the label for each pixel pair. The array must be
+    :param llabel: a list of 2-dim array of shape (height, width) containing the label for each pixel pair. The array must be
                 refactored as described in (refactor_labels()) before use
     :param conf_section: a config parser section instance containing info obout the dataset
     :return:a list containing:
@@ -140,17 +161,22 @@ def preprocessing(imgA, imgB, label, conf_section):
     """
 
     print("Info: STARTING PREPROCESSING...")
+    imgA = np.asarray(limgA)
+    imgB = np.asarray(limgB)
     # linearization
-    imgA = np.reshape(imgA, (imgA.shape[0] * imgA.shape[1], imgA.shape[2]))
-    imgB = np.reshape(imgB, (imgB.shape[0] * imgB.shape[1], imgB.shape[2]))
+    imgA = np.reshape(imgA, (imgA.shape[0] * imgA.shape[1] * imgA.shape[2], imgA.shape[3]))
+    imgB = np.reshape(imgB, (imgB.shape[0] * imgB.shape[1] * imgB.shape[2], imgB.shape[3]))
+
 
     # min maxing
 
     imgA, imgB = minmax_pair(imgA, imgB)
 
     # linearization and refactoring of the labels
+    label = np.asarray(llabel)
+    label = np.reshape(label, label.shape[0] * label.shape[1] * label.shape[2])
     label = refactor_labels(label, conf_section)
-    label = np.reshape(label, label.shape[0] * label.shape[1])
+
 
     # pair generation
     print("Info: STARTING PAIRING PROCEDURE...")

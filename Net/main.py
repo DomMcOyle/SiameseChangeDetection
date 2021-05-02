@@ -47,4 +47,4 @@ if __name__ == '__main__':
         for k in metrics.keys():
             print(k + ": " + str(metrics[k]))
 
-        s.plot_maps(prediction, labels)
+        s.plot_maps(prediction, dp.refactor_labels(np.asarray(labels)[0],parser[dataset_name]))
