@@ -98,18 +98,6 @@ def accuracy(y_true, y_pred):
     return kb.mean(kb.equal(y_true, kb.cast(y_pred < 0.5, y_true.dtype)))
 
 
-def get_confusion_matrix(y_true, y_pred, thresh=0.5):
-    """
-    Function creating a scikit-learn confusion matrix, given prediction and label in input
-    :param y_true: 1-D array containing the ground truth provided in the dataset
-    :param y_pred: 1-D array containing the predictions returned by the siamese model
-    :param thresh: float indicating the threshold below which a prediction should be labeled as "1" (not-changed)
-    :return: a scikit-learn confusion matrix based on the ground truth y_true and the adapted labels y_pred
-    """
-    pred = np.where(y_pred.ravel() < thresh, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
-    return skm.confusion_matrix(y_true, pred, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
-
-
 def get_metrics(cm):
     """
     function computing the metrics for the model, given the sklearn confusion matrix in input
@@ -124,22 +112,25 @@ def get_metrics(cm):
     return metrics
 
 
-def plot_maps(prediction, label_map, thresh=0.5):
+def plot_maps(prediction, label_map):
     """
     function plotting the original label map put beside the predicted label map
-    :param prediction: the 2-dim array returned by model.predict
+    :param prediction: the 2-dim array of labels
     :param label_map: the 2-dim array of shape (height x width) loaded with the dataset
     :param thresh: float indicating the threshold below which a prediction should be labeled as "1" (not-changed)
     :return: the plot of the two label map
     """
-    pred = np.where(prediction.ravel() < thresh, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
     new_map = np.copy(label_map)
     replace_indexes = np.where(new_map != config.UNKNOWN_LABEL)
-    new_map[replace_indexes] = pred
-    cmap = pltc.ListedColormap(['r', 'b', 'y'])
-    plt.matshow(label_map, cmap=cmap)
-    plt.axis("off")
-    plt.matshow(new_map, cmap=cmap)
-    plt.axis("off")
+    new_map[replace_indexes] = prediction
+    cmap = pltc.ListedColormap(config.COLOR_MAP)
+    fig = plt.figure()
+    ax1 = fig.add_subplot(1,2,1)
+    ax2 = fig.add_subplot(1,2,2)
+    ax1.imshow(label_map, cmap=cmap)
+    ax1.title.set_text("Ground truth")
+    ax2.imshow(new_map, cmap=cmap)
+    ax2.title.set_text("Prediction")
+
     plt.show()
 
