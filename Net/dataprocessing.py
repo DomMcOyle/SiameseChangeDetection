@@ -129,6 +129,7 @@ def load_image(path, conf_section):
         return read_mat(path, conf_section.get("matLabel"))
     else:
         raise NotImplementedError("Error: CANNOT LOAD NON-MAT FILES")
+        #TODO: implementare la compressione dei .tif
 
 
 def load_label(path, conf_section):
@@ -136,7 +137,7 @@ def load_label(path, conf_section):
 
         return read_mat(path, conf_section.get("matLabel"))
     elif ".png" or ".tif" in path:
-
+        #TODO: eseguire controllo e compressione dei png a monocanale
         return PIL.Image.open(path)
 
     else:
@@ -152,8 +153,7 @@ def preprocessing(limgA, limgB, llabel, conf_section):
                 will be extracted
     :param limgB: a list of 3-dim numpy array of shape (height, width, spectral bands) from where the second pixel of the pair
                 will be extracted
-    :param llabel: a list of 2-dim array of shape (height, width) containing the label for each pixel pair. The array must be
-                refactored as described in (refactor_labels()) before use
+    :param llabel: a list of 2-dim array of shape (height, width) containing the label for each pixel pair.
     :param conf_section: a config parser section instance containing info obout the dataset
     :return:a list containing:
             - an array containing the labeled pairs of pixels from the images
@@ -161,24 +161,30 @@ def preprocessing(limgA, limgB, llabel, conf_section):
     """
 
     print("Info: STARTING PREPROCESSING...")
-    imgA = np.asarray(limgA)
-    imgB = np.asarray(limgB)
-    # linearization
-    imgA = np.reshape(imgA, (imgA.shape[0] * imgA.shape[1] * imgA.shape[2], imgA.shape[3]))
-    imgB = np.reshape(imgB, (imgB.shape[0] * imgB.shape[1] * imgB.shape[2], imgB.shape[3]))
+    # loading and linearization of the "A-type" images of the dataset
+    imgA = np.empty(shape=(0, limgA[0].shape[2]))
+    for img in limgA:
+        imgr = np.reshape(img, (img.shape[0] * img.shape[1], img.shape[2]))
+        imgA = np.append(imgA, imgr, axis=0)
 
+    # loading and linearization of the "B-type" images of the dataset
+    imgB = np.empty(shape=(0, limgB[0].shape[2]))
+    for img in limgB:
+        imgr = np.reshape(img, (img.shape[0] * img.shape[1], img.shape[2]))
+        imgB = np.append(imgB, imgr, axis=0)
 
     # min maxing
-
     imgA, imgB = minmax_pair(imgA, imgB)
 
-    # linearization and refactoring of the labels
-    label = np.asarray(llabel)
-    label = np.reshape(label, label.shape[0] * label.shape[1] * label.shape[2])
-    label = refactor_labels(label, conf_section)
 
+    # linearization and refactoring of the labels
+    label = np.empty(shape=(0))
+    for l in llabel:
+        lr = np.reshape(l, l.shape[0] * l.shape[1])
+        label = np.append(label, refactor_labels(lr, conf_section))
 
     # pair generation
     print("Info: STARTING PAIRING PROCEDURE...")
     pairs, label = generate_set(imgA, imgB, label, config.UNKNOWN_LABEL)
+
     return pairs, label
