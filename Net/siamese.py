@@ -133,4 +133,4 @@ def plot_maps(prediction, label_map):
     ax2.title.set_text("Prediction")
 
     plt.show()
-
+    return fig
