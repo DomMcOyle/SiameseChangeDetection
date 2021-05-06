@@ -1,5 +1,6 @@
 DATA_CONFIG_PATH = "net.conf"
 MODEL_SAVE_PATH = "model/"
+STAT_PATH = "stat/"
 # Constants
 CHANGED_LABEL = 0
 UNCHANGED_LABEL = 1

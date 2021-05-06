@@ -104,6 +104,7 @@ def get_metrics(cm):
     :param cm: the sklearn confusion matrix created from the prediction
     :return: a dictionary containing the currently implemented metrics
     """
+    #TODO: invertire l'ordine, consideriamo positivi i cambiamenti
     metrics = dict()
     tn, fp, fn, tp = cm.ravel()
     metrics["overall_accuracy"] = (tn + tp) / (tn + tp + fp + fn)

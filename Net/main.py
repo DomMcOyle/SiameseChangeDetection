@@ -33,8 +33,9 @@ if __name__ == '__main__':
         first_img, second_img, labels = dp.load_dataset(dataset_name, parser)
         x_test, y_test = dp.preprocessing(first_img, second_img, labels, parser[dataset_name])
 
+        # model loading and prediction
         trained_model = s.siamese_model(x_test[0][0].shape, int(parser[dataset_name].get("FirstLayerNeurons")), distance)
-        trained_model.load_weights(parser["settings"].get("modelpath") + model_name)
+        trained_model.load_weights(config.MODEL_SAVE_PATH + model_name)
         distances = trained_model.predict([x_test[:, 0], x_test[:, 1]])
 
         # converting distances into labels
@@ -42,8 +43,9 @@ if __name__ == '__main__':
         prediction = np.where(distances.ravel() < 0.5, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
         cm = skm.confusion_matrix(y_test, prediction, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
 
+        # printing the metrics
         metrics = s.get_metrics(cm)
-        file = open(parser["settings"].get("statpath") + dataset_name+"_on_"+model_name+".txt", "w")
+        file = open(config.STAT_PATH + dataset_name+"_on_"+model_name+".txt", "w")
         file.write("TOTAL OF EXAMPLES: " + str(len(y_test))+"\n")
         file.write("TOTAL OF 1: " + str(sum(cm[1, :]))+"\n")
         file.write("TOTAL OF 0: " + str(sum(cm[0, :]))+"\n")
@@ -52,5 +54,5 @@ if __name__ == '__main__':
             file.write(k + ": " + str(metrics[k])+"\n")
         file.close()
 
-        fig = s.plot_maps(prediction, dp.refactor_labels(np.asarray(labels)[0],parser[dataset_name]))
-        fig.savefig(parser["settings"].get("statpath") + dataset_name+"_on_"+model_name+".png")
+        fig = s.plot_maps(prediction, dp.refactor_labels(np.asarray(labels)[0], parser[dataset_name]))
+        fig.savefig(config.STAT_PATH + dataset_name+"_on_"+model_name+".png")
