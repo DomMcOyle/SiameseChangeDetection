@@ -8,7 +8,7 @@ import config
 import configparser
 
 if __name__ == '__main__':
-    dataset_name = "SANTA BARBARA"
+    dataset_name = "BAY AREA"
     model_name = "BASAM6410.h5"
     distance = s.SAM
 
@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
         # dataset loading and preprocessing
         first_img, second_img, labels = dp.load_dataset(dataset_name, parser)
-        x_test, y_test = dp.preprocessing(first_img, second_img, labels, parser[dataset_name])
+        x_test, y_test = dp.preprocessing(first_img, second_img, labels, parser[dataset_name], False)
 
         # model loading and prediction
         trained_model = s.siamese_model(x_test[0][0].shape, int(parser[dataset_name].get("FirstLayerNeurons")), distance)

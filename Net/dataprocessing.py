@@ -97,8 +97,10 @@ def generate_set(img1, img2, labels, keep_unlabeled):
 def load_dataset(name, conf):
     """
     function loading a two satellite multi-spectral or hyper-spectral images as 3-dim numpy arrays of shape
-    (height, width, spectral bands) and the respective pixel-wise labels as a 2-dim numpy array (height, width)
-    it also checks whether the dataset is available or not
+    (height, width, spectral bands) and the respective pixel-wise labels as a 2-dim numpy array (height, width).
+    the dataset must be stored in three different directories (before images, after images and labels) and each
+    triplet of files (or directories) must have the same name.
+    it also checks whether the dataset is available or not.
     :param name: the name of the dataset to be loaded. If it doesn't exist, an exception is raised
     :param conf: a config parser instance pre-loaded
     :return: a list containing
@@ -106,27 +108,25 @@ def load_dataset(name, conf):
         - the second image
         - the labels
     """
-    #TODO: modificare nomi in modo da avere lo stesso per ogni cartella
     if name not in conf.sections():
         raise ValueError(name + " dataset not available")
 
-    print("Info: LOADING FIRST IMAGES...")
+    print("Info: LOADING DATASET...")
     imgAList = []
     beforepath = conf[name].get("imgAPath")
-    for file in os.listdir(beforepath):
-        imgAList.append(load_image(beforepath + os.sep + file, conf[name]))
 
-    print("Info: LOADING SECOND IMAGES...")
     imgBList = []
     afterpath = conf[name].get("imgBPath")
-    for file in os.listdir(afterpath):
-        imgBList.append(load_image(afterpath + os.sep + file, conf[name]))
 
-    print("Info: LOADING LABELS...")
     labellist = []
     labelpath = conf[name].get("labelPath")
-    for file in os.listdir(labelpath):
+    i = 0
+    for file in os.listdir(beforepath):
+        imgAList.append(load_image(beforepath + os.sep + file, conf[name]))
+        imgBList.append(load_image(afterpath + os.sep + file, conf[name]))
         labellist.append(load_label(labelpath + os.sep + file, conf[name]))
+        print(str(1)+"/"+str(len(os.listdir(beforepath))) + " pair(s) loaded")
+        i = i + 1
 
     return imgAList, imgBList, labellist
 
