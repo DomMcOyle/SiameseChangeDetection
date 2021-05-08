@@ -29,30 +29,40 @@ if __name__ == '__main__':
         # memo: nomi per i pesi = inizialidataset + loss + batch + epochs
     else:
 
-        # dataset loading and preprocessing
+        # dataset and model loading
         first_img, second_img, labels = dp.load_dataset(dataset_name, parser)
-        x_test, y_test = dp.preprocessing(first_img, second_img, labels, parser[dataset_name])
 
-        # model loading and prediction
-        trained_model = s.siamese_model(x_test[0][0].shape, int(parser[dataset_name].get("FirstLayerNeurons")), distance)
+        trained_model = s.siamese_model(first_img[0][0][0].shape, int(parser[dataset_name].get("FirstLayerNeurons")), distance)
         trained_model.load_weights(config.MODEL_SAVE_PATH + model_name)
+
+
+        # preprocessing
+        x_test, y_test = dp.preprocessing(first_img, second_img, labels, parser[dataset_name], True)
+
+        # prediction
         distances = trained_model.predict([x_test[:, 0], x_test[:, 1]])
 
         # converting distances into labels
-
         prediction = np.where(distances.ravel() < 0.5, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
-        cm = skm.confusion_matrix(y_test, prediction, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
 
-        # printing the metrics
-        metrics = s.get_metrics(cm)
-        file = open(config.STAT_PATH + dataset_name+"_on_"+model_name+".txt", "w")
-        file.write("TOTAL OF EXAMPLES: " + str(len(y_test))+"\n")
-        file.write("TOTAL OF 1: " + str(sum(cm[1, :]))+"\n")
-        file.write("TOTAL OF 0: " + str(sum(cm[0, :]))+"\n")
-        file.write("Metrics:"+"\n")
-        for k in metrics.keys():
-            file.write(k + ": " + str(metrics[k])+"\n")
-        file.close()
+        i = 0
+        for lab in labels:
+            img = prediction[i:i+lab.size]
+            # confusion matrix
+            cm = skm.confusion_matrix(y_test, img, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
 
-        fig = s.plot_maps(prediction, dp.refactor_labels(np.asarray(labels)[0], parser[dataset_name]))
-        fig.savefig(config.STAT_PATH + dataset_name+"_on_"+model_name+".png")
+            # printing the metrics
+            metrics = s.get_metrics(cm)
+            file = open(config.STAT_PATH + dataset_name+"_on_"+model_name+".txt", "w")
+            file.write("TOTAL OF EXAMPLES: " + str(len(y_test))+"\n")
+            file.write("TOTAL OF 1: " + str(sum(cm[1, :]))+"\n")
+            file.write("TOTAL OF 0: " + str(sum(cm[0, :]))+"\n")
+            file.write("METRICS:"+"\n")
+            for k in metrics.keys():
+                file.write(k + ": " + str(metrics[k])+"\n")
+            file.write("CONFUSION MATRIX:\n" + str(cm))
+            file.close()
+
+            fig = s.plot_maps(img, dp.refactor_labels(lab, parser[dataset_name]))
+            fig.savefig(config.STAT_PATH + dataset_name+"_on_"+model_name+".png", dpi=300, bbox_inches='tight')
+            i = i + lab.size

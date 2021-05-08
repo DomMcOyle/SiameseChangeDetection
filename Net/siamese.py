@@ -31,7 +31,7 @@ def siamese_model(input_shape, first_layer_dim, score_function):
     this is a temporary func, since it doesn't allow automatic hyperparameters tuning
     :param input_shape: the input shape for the first input layer
     :param first_layer_dim: a positive integer indicating the number of neurons for the fist layer
-    :param score_function: the loss function to be used for training between SAM and euclidean_distance
+    :param score_function: the function to be used for calculating distances. it can be SAM or euclidean_distance
     :return: a compiled siamese model with adam optimization
     """
     base = siamese_base_model(input_shape, first_layer_dim)
@@ -104,9 +104,8 @@ def get_metrics(cm):
     :param cm: the sklearn confusion matrix created from the prediction
     :return: a dictionary containing the currently implemented metrics
     """
-    #TODO: invertire l'ordine, consideriamo positivi i cambiamenti
     metrics = dict()
-    tn, fp, fn, tp = cm.ravel()
+    tp, fn, fp, tn = cm.ravel()
     metrics["overall_accuracy"] = (tn + tp) / (tn + tp + fp + fn)
     metrics["false_positives_num"] = fp
     metrics["false_negatives_num"] = fn
@@ -116,22 +115,28 @@ def get_metrics(cm):
 def plot_maps(prediction, label_map):
     """
     function plotting the original label map put beside the predicted label map
-    :param prediction: the 2-dim array of labels
+    :param prediction: the 1-dim array of predicted classes
     :param label_map: the 2-dim array of shape (height x width) loaded with the dataset
-    :param thresh: float indicating the threshold below which a prediction should be labeled as "1" (not-changed)
-    :return: the plot of the two label map
+    :return: the plot of the two label map and the whole prediction
     """
-    new_map = np.copy(label_map)
-    replace_indexes = np.where(new_map != config.UNKNOWN_LABEL)
-    new_map[replace_indexes] = prediction
-    cmap = pltc.ListedColormap(config.COLOR_MAP)
-    fig = plt.figure()
-    ax1 = fig.add_subplot(1,2,1)
-    ax2 = fig.add_subplot(1,2,2)
-    ax1.imshow(label_map, cmap=cmap)
-    ax1.title.set_text("Ground truth")
-    ax2.imshow(new_map, cmap=cmap)
-    ax2.title.set_text("Prediction")
+    predicted_map = np.reshape(prediction, label_map.shape)
 
+    new_map = np.copy(predicted_map)
+    replace_indexes = np.where(label_map == config.UNKNOWN_LABEL)
+    new_map[replace_indexes] = config.UNKNOWN_LABEL
+
+    cmap = pltc.ListedColormap(config.COLOR_MAP)
+    fig = plt.figure(figsize=(16, 9))
+    ax1 = fig.add_subplot(1, 3, 1)
+    ax2 = fig.add_subplot(1, 3, 2)
+    ax3 = fig.add_subplot(1, 3, 3)
+    ax1.imshow(predicted_map, cmap=cmap, vmin=0, vmax=2)
+    ax1.title.set_text("Total prediction")
+
+    ax2.imshow(new_map, cmap=cmap, vmin=0, vmax=2)
+    ax2.title.set_text("Comparable Prediction")
+
+    ax3.imshow(label_map, cmap=cmap, vmin=0, vmax=2)
+    ax3.title.set_text("Ground truth")
     plt.show()
     return fig
