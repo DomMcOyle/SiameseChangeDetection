@@ -1,40 +1,56 @@
 import numpy as np
-from keras.layers import Dense, Input, Lambda, Dropout
-from keras.models import Model
-import keras.backend as kb
-import tensorflow as tf
-import sklearn.metrics as skm
-import config
 import matplotlib.pyplot as plt
 import matplotlib.colors as pltc
 
+import tensorflow as tf
+import keras.backend as kb
+from keras.layers import Dense, Input, Lambda, Dropout
+from keras.models import Model
+from keras.optimizers import Adam
+from keras import callbacks
 
-def siamese_base_model(input_shape, first_layer_dim):
+from hyperas.distributions import uniform, choice
+
+from sklearn.model_selection import train_test_split
+
+import config
+
+
+def siamese_base_model(input_shape, first_drop, second_drop):
     """
     Function creating the common base for the siamese network
     :param input_shape: the shape of the input for the first layer
-    :param first_layer_dim: a positive integer indicating the number of neurons for the fist layer
-    :return: a Model with three dense layers
+    :param first_drop: a float between 0 and 1 indicating first dropout layer's drop rate
+    :param second_drop: a float between 0 and 1 indicating second dropout layer's drop rate
+    :return: a Model with three dense layers interspersed with two dropout layers
     """
     input_layer = Input(input_shape)
-    hidden = Dense(first_layer_dim, activation='relu')(input_layer)
+    hidden = Dense(input_shape[0], activation='relu')(input_layer)
+    hidden = Dropout(first_drop)(hidden)
     hidden = Dense(128, activation='relu')(hidden)
+    hidden = Dropout(second_drop)(hidden)
     hidden = Dense(64, activation='relu')(hidden)
     # memo: sperimentare dopo aver ridotto i neuroni di espandere nuovamente
         # a 128 e 512
     return Model(input_layer, hidden)
 
 
-def siamese_model(input_shape, first_layer_dim, score_function):
+def siamese_model(train_set, train_label, test_set, test_labels, score_function):
     """
-    Function returning the compiled siamese model
-    this is a temporary func, since it doesn't allow automatic hyperparameters tuning
+    TODO: MODIFICARE COMMENTI
+    Function for creating and testing a siamese model, given the training and the test set as input.
+    This function is used inside hyperparam_search, in order to find the model with the best hyperparameters
     :param input_shape: the input shape for the first input layer
-    :param first_layer_dim: a positive integer indicating the number of neurons for the fist layer
     :param score_function: the function to be used for calculating distances. it can be SAM or euclidean_distance
     :return: a compiled siamese model with adam optimization
     """
-    base = siamese_base_model(input_shape, first_layer_dim)
+    # building the net
+    input_shape = train_set[0, 0].shape
+    first_dropout_rate = {{uniform(0, 0.5)}}
+    second_dropout_rate = {{uniform(0, 0.5)}}
+
+    base = siamese_base_model(input_shape, first_dropout_rate, second_dropout_rate)
+
     input_a = Input(input_shape)
     input_b = Input(input_shape)
 
@@ -43,8 +59,29 @@ def siamese_model(input_shape, first_layer_dim, score_function):
 
     distance_layer = Lambda(score_function)([joined_ia, joined_ib])
     siamese = Model([input_a, input_b], distance_layer)
-    siamese.compile(loss=contrastive_loss, optimizer="adam", metrics=[accuracy])
+
+    adam = Adam(lr={{uniform(0.0001, 0.01)}})
+    siamese.compile(loss=contrastive_loss, optimizer=adam, metrics=[accuracy])
     siamese.summary()
+
+    # setting an EarlyStopping callback
+    callbacks_list = [
+        callbacks.EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=10,
+                                restore_best_weights=True),
+    ]
+
+    # generating the validation set
+    x_train, y_train, x_val, y_val = train_test_split(train_set, train_label, stratify=train_label, test_size=0.2)
+
+    h = siamese.fit([x_train[:, 0], x_train[:, 1]], y_train,
+                    batch_size={{choice([32, 64, 128, 256, 512])}},
+                    epochs=150,
+                    verbose=2,
+                    callbacks=callbacks_list,
+                    validation_data=([x_val[:, 0], x_val[:, 1]], y_val))
+
+    #TODO: riprendi da riga 160
+
     return siamese
 
 

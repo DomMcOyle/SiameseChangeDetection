@@ -17,22 +17,22 @@ if __name__ == '__main__':
 
     if int(parser["settings"].get("training")) == 1:
         first_img, second_img, labels = dp.load_dataset(dataset_name, parser)
-        x_train, y_train = dp.preprocessing(first_img, second_img, labels, parser[dataset_name])
+        x_train, y_train = dp.preprocessing(first_img, second_img, labels, parser[dataset_name], False)
 
-        model = s.siamese_model(x_train[0, 0].shape, int(parser[dataset_name].get("FirstLayerNeurons")), distance)
+        model = s.siamese_model(x_train[0, 0].shape, distance)
 
         model.fit([x_train[:, 0], x_train[:, 1]], y_train,
                   batch_size=64,
                   epochs=10,
                   verbose=2)
-        model.save_weights(config.MODEL_SAVE_PATH + model_name)
+        #model.save_weights(config.MODEL_SAVE_PATH + model_name)
         # memo: nomi per i pesi = inizialidataset + loss + batch + epochs
     else:
 
         # dataset and model loading
         first_img, second_img, labels = dp.load_dataset(dataset_name, parser)
 
-        trained_model = s.siamese_model(first_img[0][0][0].shape, int(parser[dataset_name].get("FirstLayerNeurons")), distance)
+        trained_model = s.siamese_model(first_img[0][0][0].shape, distance)
         trained_model.load_weights(config.MODEL_SAVE_PATH + model_name)
 
 
