@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as pltc
+import time
 
 import tensorflow as tf
 import keras.backend as kb
@@ -10,37 +11,92 @@ from keras.optimizers import Adam
 from keras import callbacks
 
 from hyperas.distributions import uniform, choice
+from hyperas import optim
+from hyperopt import STATUS_OK, Trials, tpe
 
 from sklearn.model_selection import train_test_split
-
+import sklearn.metrics as skm
 import config
 
-
-def siamese_base_model(input_shape, first_drop, second_drop):
+def data():
     """
-    Function creating the common base for the siamese network
-    :param input_shape: the shape of the input for the first layer
-    :param first_drop: a float between 0 and 1 indicating first dropout layer's drop rate
-    :param second_drop: a float between 0 and 1 indicating second dropout layer's drop rate
-    :return: a Model with three dense layers interspersed with two dropout layers
+    Parameterless function to be given to the optim.minimize function of hyperas
+    :return: a list containing the training set, the training labels, the test set and the test labels
     """
-    input_layer = Input(input_shape)
-    hidden = Dense(input_shape[0], activation='relu')(input_layer)
-    hidden = Dropout(first_drop)(hidden)
-    hidden = Dense(128, activation='relu')(hidden)
-    hidden = Dropout(second_drop)(hidden)
-    hidden = Dense(64, activation='relu')(hidden)
-    # memo: sperimentare dopo aver ridotto i neuroni di espandere nuovamente
-        # a 128 e 512
-    return Model(input_layer, hidden)
+    config.test_cm = []
+    config.val_cm = []
+    return config.train_set, config.train_labels, config.test_set, config.test_labels
 
 
-def siamese_model(train_set, train_label, test_set, test_labels, score_function):
+def hyperparam_search(train_set, train_labels, test_set, test_labels, score_function, name):
     """
-    TODO: MODIFICARE COMMENTI
+    Function used for training and hyperparameter tuning
+    :param train_set: the training set for the model. It is assumed to be an array of preprocessed pixel pairs
+    :param train_labels: a 1-dim array containing the training labels. it is assumed it's the same length of train_set
+    :param test_set: the test set for the model. The assumption are the same of train_set
+    :param test_labels: a 1-dim array containing the test labels for metrics computation. it is assumed it's the same
+                        length of test_set
+    :param score_function: the function to be used for calculating distances. it can be SAM or euclidean_distance
+    :param name: string containing the name of the model to be saved
+
+    :return: the function saves the various statistics on the trials done and the best model retrieved.
+        Also it returns the best model and the time of its training
+
+    """
+    trials = Trials()
+    config.train_set = train_set
+    config.train_labels = train_labels
+    config.test_set = test_set
+    config.test_labels = test_labels
+
+    bs = [32, 64, 128, 256, 512]
+    best_run, best_model = optim.minimze(model=siamese_model,
+                                         data=data,
+                                         functions=[siamese_base_model, siamese_model,
+                                                    contrastive_loss, score_function, accuracy],
+                                         algo=tpe.suggest,
+                                         max_evals=20,
+                                         trials=trials
+                                         )
+    output = open(name + "_stats.csv", "w")
+    output.write("\nTrials")
+    output.write("\ntrial_id, time, epochs, val_acc, learning_rate, batch_size, dropout_1, dropout_2, " +
+                 "test_overall_acc, test_false_positives, test_false_negatives, val_overall_acc," +
+                 " val_false_positives, val_false_negatives")
+    for trial, test, validation in zip(trials.trials, config.test_cm, config.val_cm):
+        tcm = get_metrics(test)
+        vcm = get_metrics(validation)
+
+        output.write(
+            "\n%s, %d, %d, %f, %f, %d, %f, %f, %f, %d, %d, %f, %d, %d" % (
+                trial['tid'],
+                trial['result']['time'],
+                trial['result']['n_epochs'],
+                abs(trial['result']['loss']),
+                trial['misc']['lr'][0],
+                bs[trial['misc']['vals']['batch_size'][0]],
+                trial['misc']['vals']['dropout1'][0],
+                trial['misc']['vals']['dropout1_1'][0],
+                tcm[0], tcm[1], tcm[2],
+                vcm[0], vcm[1], vcm[2]
+        ))
+
+    output.write("\nBest model\n")
+    output.write(str(best_run))
+
+    config.best_model.save(name)
+    return config.best_model, config.best_time
+
+
+def siamese_model(train_set, train_labels, test_set, test_labels, score_function):
+    """
     Function for creating and testing a siamese model, given the training and the test set as input.
-    This function is used inside hyperparam_search, in order to find the model with the best hyperparameters
-    :param input_shape: the input shape for the first input layer
+    This function is used inside hyperparam_search, in order to find the model with the best hyper-parameters
+    :param train_set: the training set for the model. It is assumed to be an array of preprocessed pixel pairs
+    :param train_labels: a 1-dim array containing the training labels. it is assumed it's the same length of train_set
+    :param test_set: the test set for the model. The assumption are the same of train_set
+    :param test_labels: a 1-dim array containing the test labels for metrics computation. it is assumed it's the same
+                        length of test_set
     :param score_function: the function to be used for calculating distances. it can be SAM or euclidean_distance
     :return: a compiled siamese model with adam optimization
     """
@@ -71,18 +127,65 @@ def siamese_model(train_set, train_label, test_set, test_labels, score_function)
     ]
 
     # generating the validation set
-    x_train, y_train, x_val, y_val = train_test_split(train_set, train_label, stratify=train_label, test_size=0.2)
+    x_train, x_val, y_train, y_val = train_test_split(train_set, train_labels, stratify=train_labels, test_size=0.2)
 
+    tic = time.time()
+    # fitting the model
     h = siamese.fit([x_train[:, 0], x_train[:, 1]], y_train,
                     batch_size={{choice([32, 64, 128, 256, 512])}},
                     epochs=150,
                     verbose=2,
                     callbacks=callbacks_list,
                     validation_data=([x_val[:, 0], x_val[:, 1]], y_val))
+    toc = time.time()
+    # printing the best score
+    score = max(h.history['val_accuracy'][:])
+    print('Score', score)
+    print('Epochs', len(h.history['loss']))
 
-    #TODO: riprendi da riga 160
+    # making prediction on the test set
+    distances = siamese.predict([test_set[:, 0], test_set[:, 1]])
 
-    return siamese
+    # converting distances into labels
+    prediction = np.where(distances.ravel() < 0.5, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
+    cm = skm.confusion_matrix(test_labels, prediction, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
+    config.test_cm.append(cm)
+
+    # making preditcion on the validation set
+    val_distances = siamese.predict([x_val[:, 0], x_val[:, 1]])
+
+    # converting distances into labels
+    val_prediction = np.where(val_distances.ravel() < 0.5, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
+    vcm = skm.confusion_matrix(y_val, val_prediction, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
+    config.val_cm.append(vcm)
+
+    print('Best Score', config.best_score)
+    if score > config.best_score:
+        config.best_score = score
+        config.best_model = siamese
+        config.best_time = toc - tic
+
+    return {'loss': -score, 'status': STATUS_OK, 'n_epochs': len(h.history['loss']),
+            'model': config.best_model, 'time': toc - tic}
+
+
+def siamese_base_model(input_shape, first_drop, second_drop):
+    """
+    Function creating the common base for the siamese network
+    :param input_shape: the shape of the input for the first layer
+    :param first_drop: a float between 0 and 1 indicating first dropout layer's drop rate
+    :param second_drop: a float between 0 and 1 indicating second dropout layer's drop rate
+    :return: a Model with three dense layers interspersed with two dropout layers
+    """
+    input_layer = Input(input_shape)
+    hidden = Dense(input_shape[0], activation='relu')(input_layer)
+    hidden = Dropout(first_drop)(hidden)
+    hidden = Dense(128, activation='relu')(hidden)
+    hidden = Dropout(second_drop)(hidden)
+    hidden = Dense(64, activation='relu')(hidden)
+    # memo: sperimentare dopo aver ridotto i neuroni di espandere nuovamente
+        # a 128 e 512
+    return Model(input_layer, hidden)
 
 
 def euclidean_dist(tens):
