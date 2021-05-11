@@ -1,3 +1,5 @@
+import pickle
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as pltc
@@ -18,14 +20,22 @@ from sklearn.model_selection import train_test_split
 import sklearn.metrics as skm
 import config
 
+
 def data():
     """
     Parameterless function to be given to the optim.minimize function of hyperas
-    :return: a list containing the training set, the training labels, the test set and the test labels
+    :return: a list containing the training set, the training labels, the test set, the test labels and the selected
+             score function
     """
     config.test_cm = []
     config.val_cm = []
-    return config.train_set, config.train_labels, config.test_set, config.test_labels
+    train_set = config.train_set
+    train_labels = config.train_labels
+    test_set = config.test_set
+    test_labels = config.test_labels
+    score_function = config.selected_score
+
+    return train_set, train_labels, test_set, test_labels, score_function
 
 
 def hyperparam_search(train_set, train_labels, test_set, test_labels, score_function, name):
@@ -48,43 +58,62 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
     config.train_labels = train_labels
     config.test_set = test_set
     config.test_labels = test_labels
+    config.selected_score = score_function
 
     bs = [32, 64, 128, 256, 512]
-    best_run, best_model = optim.minimze(model=siamese_model,
+    print("Info: BEGINNING SEARCH...")
+    best_run, best_model = optim.minimize(model=siamese_model,
                                          data=data,
-                                         functions=[siamese_base_model, siamese_model,
+                                         functions=[siamese_base_model, siamese_model, build_net,
                                                     contrastive_loss, score_function, accuracy],
                                          algo=tpe.suggest,
-                                         max_evals=20,
+                                         #TODO: mettere a 20
+                                         max_evals=2,
                                          trials=trials
                                          )
-    output = open(name + "_stats.csv", "w")
-    output.write("\nTrials")
+    print("Info: SAVING RESULTS...")
+    output = open(config.STAT_PATH + name + "_stats.csv", "w")
+    output.write("Trials")
     output.write("\ntrial_id, time, epochs, val_acc, learning_rate, batch_size, dropout_1, dropout_2, " +
-                 "test_overall_acc, test_false_positives, test_false_negatives, val_overall_acc," +
+                 "test_overall_acc, test_true_positives, test_true_negatives, test_false_positives, " +
+                 "test_false_negatives, val_overall_acc, val_true_positives, val_true_negatives" +
                  " val_false_positives, val_false_negatives")
+
     for trial, test, validation in zip(trials.trials, config.test_cm, config.val_cm):
         tcm = get_metrics(test)
         vcm = get_metrics(validation)
 
         output.write(
-            "\n%s, %d, %d, %f, %f, %d, %f, %f, %f, %d, %d, %f, %d, %d" % (
+            "\n%s, %d, %d, %f, %f, %d, %f, %f, %f, %d, %d, %d, %d, %f, %d, %d, %d, %d" % (
                 trial['tid'],
                 trial['result']['time'],
                 trial['result']['n_epochs'],
                 abs(trial['result']['loss']),
-                trial['misc']['lr'][0],
+                trial['misc']['vals']['lr'][0],
                 bs[trial['misc']['vals']['batch_size'][0]],
-                trial['misc']['vals']['dropout1'][0],
-                trial['misc']['vals']['dropout1_1'][0],
-                tcm[0], tcm[1], tcm[2],
-                vcm[0], vcm[1], vcm[2]
-        ))
+                trial['misc']['vals']['first_dropout_rate'][0],
+                trial['misc']['vals']['first_dropout_rate_1'][0],
+                tcm["overall_accuracy"], tcm["true_positives_num"], tcm["true_negatives_num"],
+                tcm["false_positives_num"], tcm["false_negatives_num"],
+                vcm["overall_accuracy"], vcm["true_positives_num"], vcm["true_negatives_num"],
+                vcm["false_positives_num"], vcm["false_negatives_num"]
+            ))
 
     output.write("\nBest model\n")
+    best_run['batch_size'] = bs[best_run['batch_size']]
     output.write(str(best_run))
+    output.close()
 
-    config.best_model.save(name)
+    print("Info: SAVING MODEL (PARAMETERS + WEIGHTS)...")
+    best_run.pop('batch_size')
+    best_run['score_function'] = score_function
+
+    param_file = open(config.MODEL_SAVE_PATH + name + "_param.pickle", "wb")
+    pickle.dump(best_run, param_file, pickle.HIGHEST_PROTOCOL)
+    param_file.close()
+
+    config.best_model.save_weights(config.MODEL_SAVE_PATH + name + ".h5")
+
     return config.best_model, config.best_time
 
 
@@ -104,21 +133,14 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
     input_shape = train_set[0, 0].shape
     first_dropout_rate = {{uniform(0, 0.5)}}
     second_dropout_rate = {{uniform(0, 0.5)}}
+    lr = {{uniform(0.0001, 0.01)}}
 
-    base = siamese_base_model(input_shape, first_dropout_rate, second_dropout_rate)
+    param = {'first_dropout_rate': first_dropout_rate,
+             'first_dropout_rate_1': second_dropout_rate,
+             'lr': lr,
+             'score_function': score_function}
 
-    input_a = Input(input_shape)
-    input_b = Input(input_shape)
-
-    joined_ia = base(input_a)
-    joined_ib = base(input_b)
-
-    distance_layer = Lambda(score_function)([joined_ia, joined_ib])
-    siamese = Model([input_a, input_b], distance_layer)
-
-    adam = Adam(lr={{uniform(0.0001, 0.01)}})
-    siamese.compile(loss=contrastive_loss, optimizer=adam, metrics=[accuracy])
-    siamese.summary()
+    siamese = build_net(input_shape, param)
 
     # setting an EarlyStopping callback
     callbacks_list = [
@@ -167,6 +189,37 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
 
     return {'loss': -score, 'status': STATUS_OK, 'n_epochs': len(h.history['loss']),
             'model': config.best_model, 'time': toc - tic}
+
+
+def build_net(input_shape, parameters):
+    """
+    Function building the architecture for the net. Because of the Lambda layer, the net cant' be serialized as
+    a saved_model, so it must be rebuilt each time.
+
+    :param input_shape: the shape for the input layer
+    :param parameters: dict, contains the parameter for building the network:
+        'first_dropout_rate': the rate for the first dropout layer
+        'first_dropout_rate_1': the rate for the second dropout layer. The name is given
+                            by the hyperas optimization process
+        'lr': the learning rate
+        'score_function': the name of the score function selected for the net
+    :return: a compiled keras model with the given parameters
+    """
+    base = siamese_base_model(input_shape, parameters['first_dropout_rate'], parameters['first_dropout_rate_1'])
+
+    input_a = Input(input_shape)
+    input_b = Input(input_shape)
+
+    joined_ia = base(input_a)
+    joined_ib = base(input_b)
+
+    distance_layer = Lambda(parameters['score_function'])([joined_ia, joined_ib])
+    siamese = Model([input_a, input_b], distance_layer)
+
+    adam = Adam(lr=parameters['lr'])
+    siamese.compile(loss=contrastive_loss, optimizer=adam, metrics=[accuracy])
+    siamese.summary()
+    return siamese
 
 
 def siamese_base_model(input_shape, first_drop, second_drop):
@@ -249,6 +302,8 @@ def get_metrics(cm):
     metrics["overall_accuracy"] = (tn + tp) / (tn + tp + fp + fn)
     metrics["false_positives_num"] = fp
     metrics["false_negatives_num"] = fn
+    metrics["true_negatives_num"] = tn
+    metrics["true_positives_num"] = tp
     return metrics
 
 

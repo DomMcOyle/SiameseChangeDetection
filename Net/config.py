@@ -19,3 +19,4 @@ train_set = None
 test_set = None
 train_labels = None
 test_labels = None
+selected_score = None
