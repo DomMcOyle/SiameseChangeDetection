@@ -1,0 +1,6 @@
+Trials
+trial_id, time, epochs, val_acc, learning_rate, batch_size, dropout_1, dropout_2, test_overall_acc, test_true_positives, test_true_negatives, test_false_positives, test_false_negatives, val_overall_acc, val_true_positives, val_true_negatives val_false_positives, val_false_negatives
+0, 59, 35, 0.945614, 0.004427, 64, 0.368585, 0.325898, 0.814209, 46574, 61351, 19067, 5560, 0.944478, 7285, 6596, 247, 569
+1, 25, 28, 0.952061, 0.003900, 128, 0.418333, 0.456415, 0.878531, 43059, 73392, 7026, 9075, 0.948425, 7346, 6593, 250, 508
+Best model
+{'batch_size': 128, 'first_dropout_rate': 0.41833334235579095, 'first_dropout_rate_1': 0.45641472349028517, 'lr': 0.00389970771825535}

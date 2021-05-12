@@ -63,14 +63,13 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
     bs = [32, 64, 128, 256, 512]
     print("Info: BEGINNING SEARCH...")
     best_run, best_model = optim.minimize(model=siamese_model,
-                                         data=data,
-                                         functions=[siamese_base_model, siamese_model, build_net,
-                                                    contrastive_loss, score_function, accuracy],
-                                         algo=tpe.suggest,
-                                         #TODO: mettere a 20
-                                         max_evals=2,
-                                         trials=trials
-                                         )
+                                          data=data,
+                                          functions=[siamese_base_model, siamese_model, build_net,
+                                                     contrastive_loss, score_function, accuracy],
+                                          algo=tpe.suggest,
+                                          max_evals=20,
+                                          trials=trials
+                                          )
     print("Info: SAVING RESULTS...")
     output = open(config.STAT_PATH + name + "_stats.csv", "w")
     output.write("Trials")
@@ -264,6 +263,9 @@ def SAM(tens):
     xnorm = kb.l2_normalize(x, axis=1)
     ynorm = kb.l2_normalize(y, axis=1)
     dot = kb.sum(xnorm * ynorm, axis=1, keepdims=True)
+    # dot must be bounded since some values could a little bit more than 1 or less than -1
+    dot = kb.maximum(dot, -1)
+    dot = kb.minimum(dot, 1)
     return tf.math.acos(dot)
 
 
@@ -275,7 +277,7 @@ def contrastive_loss(y_true, y_pred, margin=1):
     :param margin: positive value which helps to make largely dissimilar pairs to count toward the loss computation
     :return: the value of the contrastive loss
     """
-    y_true = tf.cast(y_true, y_pred.dtype)
+    #y_true = tf.cast(y_true, y_pred.dtype)
     square_pred = kb.square(y_pred)
     square_margin = kb.square(kb.maximum(margin - y_pred, 0))
     return kb.mean(y_true * square_pred + (1 - y_true) * square_margin)
