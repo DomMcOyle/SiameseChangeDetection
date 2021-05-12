@@ -168,7 +168,7 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
     distances = siamese.predict([test_set[:, 0], test_set[:, 1]])
 
     # converting distances into labels
-    prediction = np.where(distances.ravel() < 0.5, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
+    prediction = np.where(distances.ravel() < config.PRED_THRESHOLD, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
     cm = skm.confusion_matrix(test_labels, prediction, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
     config.test_cm.append(cm)
 
@@ -176,7 +176,7 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
     val_distances = siamese.predict([x_val[:, 0], x_val[:, 1]])
 
     # converting distances into labels
-    val_prediction = np.where(val_distances.ravel() < 0.5, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
+    val_prediction = np.where(val_distances.ravel() < config.PRED_THRESHOLD, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
     vcm = skm.confusion_matrix(y_val, val_prediction, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
     config.val_cm.append(vcm)
 
@@ -290,7 +290,7 @@ def accuracy(y_true, y_pred):
     :param y_pred: the predicted value for the pixel's class
     :return: the accuracy considering y_pred = 1 <=> y_pred<0.5
     """
-    return kb.mean(kb.equal(y_true, kb.cast(y_pred < 0.5, y_true.dtype)))
+    return kb.mean(kb.equal(y_true, kb.cast(y_pred < config.PRED_THRESHOLD, y_true.dtype)))
 
 
 def get_metrics(cm):

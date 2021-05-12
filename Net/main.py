@@ -9,10 +9,10 @@ import configparser
 import pickle
 
 if __name__ == '__main__':
-    train_set = "BAY AREA"
-    test_set = "SANTA BARBARA"
-    model_name = "BASAM"
-    distance = s.euclidean_dist
+    train_set = "SANTA BARBARA"
+    test_set = "BAY AREA"
+    model_name = "SBSAM"
+    distance = s.SAM
 
     parser = configparser.ConfigParser()
     parser.read(config.DATA_CONFIG_PATH)
@@ -48,7 +48,7 @@ if __name__ == '__main__':
         distances = model.predict([x_test[:, 0], x_test[:, 1]])
 
         # converting distances into labels
-        prediction = np.where(distances.ravel() < 0.5, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
+        prediction = np.where(distances.ravel() < config.PRED_THRESHOLD, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
 
         print("Info: SAVING THE RESULTS...")
         i = 0
@@ -59,7 +59,7 @@ if __name__ == '__main__':
 
             # printing the metrics
             metrics = s.get_metrics(cm)
-            file = open(config.STAT_PATH + test_set+"_on_"+model_name+".csv", "w")
+            file = open(config.STAT_PATH + test_set+"_on_"+model_name+"2.csv", "w")
             file.write("total_examples")
             for k in metrics.keys():
                 file.write(", " + k)
@@ -71,5 +71,5 @@ if __name__ == '__main__':
             file.close()
 
             fig = s.plot_maps(img, dp.refactor_labels(lab, parser[test_set]))
-            fig.savefig(config.STAT_PATH + test_set+"_on_"+model_name+".png", dpi=300, bbox_inches='tight')
+            fig.savefig(config.STAT_PATH + test_set+"_on_"+model_name+"2.png", dpi=300, bbox_inches='tight')
             i = i + lab.size
