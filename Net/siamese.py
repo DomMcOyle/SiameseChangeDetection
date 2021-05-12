@@ -75,7 +75,7 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
     output.write("Trials")
     output.write("\ntrial_id, time, epochs, val_acc, learning_rate, batch_size, dropout_1, dropout_2, " +
                  "test_overall_acc, test_true_positives, test_true_negatives, test_false_positives, " +
-                 "test_false_negatives, val_overall_acc, val_true_positives, val_true_negatives" +
+                 "test_false_negatives, val_overall_acc, val_true_positives, val_true_negatives," +
                  " val_false_positives, val_false_negatives")
 
     for trial, test, validation in zip(trials.trials, config.test_cm, config.val_cm):

@@ -111,7 +111,7 @@ def load_dataset(name, conf):
     if name not in conf.sections():
         raise ValueError(name + " dataset not available")
 
-    print("Info: LOADING DATASET...")
+    print("Info: LOADING DATASET " + name + "...")
     imgAList = []
     beforepath = conf[name].get("imgAPath")
 
