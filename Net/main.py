@@ -6,45 +6,51 @@ import os
 import numpy as np
 import config
 import configparser
+import pickle
 
 if __name__ == '__main__':
-    dataset_name = "SANTA BARBARA"
-    model_name = "BASAM6410.h5"
+    train_set = "SANTA BARBARA"
+    test_set = "BAY AREA"
+    model_name = "SBSAM"
     distance = s.SAM
 
     parser = configparser.ConfigParser()
     parser.read(config.DATA_CONFIG_PATH)
 
     if int(parser["settings"].get("training")) == 1:
-        first_img, second_img, labels = dp.load_dataset(dataset_name, parser)
-        x_train, y_train = dp.preprocessing(first_img, second_img, labels, parser[dataset_name])
+        # loading the pairs
+        train_a_img, train_b_img, train_labels = dp.load_dataset(train_set, parser)
+        test_a_img, test_b_img, test_labels = dp.load_dataset(test_set, parser)
 
-        model = s.siamese_model(x_train[0, 0].shape, int(parser[dataset_name].get("FirstLayerNeurons")), distance)
+        # executing preprocessing
+        x_train, y_train = dp.preprocessing(train_a_img, train_b_img, train_labels, parser[train_set], False)
+        x_test, y_test = dp.preprocessing(test_a_img, test_b_img, test_labels, parser[test_set], True)
 
-        model.fit([x_train[:, 0], x_train[:, 1]], y_train,
-                  batch_size=64,
-                  epochs=10,
-                  verbose=2)
-        model.save_weights(config.MODEL_SAVE_PATH + model_name)
-        # memo: nomi per i pesi = inizialidataset + loss + batch + epochs
+        print("Info: STARTING HYPERSEARCH PROCEDURE")
+        model, run = s.hyperparam_search(x_train, y_train, x_test, y_test, distance, model_name)
+
     else:
 
         # dataset and model loading
-        first_img, second_img, labels = dp.load_dataset(dataset_name, parser)
+        first_img, second_img, labels = dp.load_dataset(test_set, parser)
+        x_test, y_test = dp.preprocessing(first_img, second_img, labels, parser[test_set], True)
 
-        trained_model = s.siamese_model(first_img[0][0][0].shape, int(parser[dataset_name].get("FirstLayerNeurons")), distance)
-        trained_model.load_weights(config.MODEL_SAVE_PATH + model_name)
+        # parameters loading
+        print("Info: LOADING THE MODEL...")
+        param_file = open(config.MODEL_SAVE_PATH + model_name +"_param.pickle", "rb")
+        parameters = pickle.load(param_file)
+        model = s.build_net(x_test[0, 0].shape, parameters)
 
-
-        # preprocessing
-        x_test, y_test = dp.preprocessing(first_img, second_img, labels, parser[dataset_name], True)
+        model.load_weights(config.MODEL_SAVE_PATH + model_name +".h5")
 
         # prediction
-        distances = trained_model.predict([x_test[:, 0], x_test[:, 1]])
+        print("Info: EXECUTING PREDICTIONS...")
+        distances = model.predict([x_test[:, 0], x_test[:, 1]])
 
         # converting distances into labels
-        prediction = np.where(distances.ravel() < 0.5, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
+        prediction = np.where(distances.ravel() < config.PRED_THRESHOLD, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
 
+        print("Info: SAVING THE RESULTS...")
         i = 0
         for lab in labels:
             img = prediction[i:i+lab.size]
@@ -53,16 +59,17 @@ if __name__ == '__main__':
 
             # printing the metrics
             metrics = s.get_metrics(cm)
-            file = open(config.STAT_PATH + dataset_name+"_on_"+model_name+".txt", "w")
-            file.write("TOTAL OF EXAMPLES: " + str(len(y_test))+"\n")
-            file.write("TOTAL OF 1: " + str(sum(cm[1, :]))+"\n")
-            file.write("TOTAL OF 0: " + str(sum(cm[0, :]))+"\n")
-            file.write("METRICS:"+"\n")
+            file = open(config.STAT_PATH + test_set+"_on_"+model_name+"2.csv", "w")
+            file.write("total_examples")
             for k in metrics.keys():
-                file.write(k + ": " + str(metrics[k])+"\n")
-            file.write("CONFUSION MATRIX:\n" + str(cm))
+                file.write(", " + k)
+            file.write("\n" + str(len(y_test)))
+
+            for k in metrics.keys():
+                file.write(", " + str(metrics[k]))
+            file.write("\n")
             file.close()
 
-            fig = s.plot_maps(img, dp.refactor_labels(lab, parser[dataset_name]))
-            fig.savefig(config.STAT_PATH + dataset_name+"_on_"+model_name+".png", dpi=300, bbox_inches='tight')
+            fig = s.plot_maps(img, dp.refactor_labels(lab, parser[test_set]))
+            fig.savefig(config.STAT_PATH + test_set+"_on_"+model_name+"2.png", dpi=300, bbox_inches='tight')
             i = i + lab.size
