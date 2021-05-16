@@ -1,5 +1,6 @@
 import dataprocessing as dp
 import siamese as s
+import predutils as pu
 import sklearn.metrics as skm
 import keras.models as km
 import os
@@ -70,6 +71,6 @@ if __name__ == '__main__':
             file.write("\n")
             file.close()
 
-            fig = s.plot_maps(img, dp.refactor_labels(lab, parser[test_set]))
+            fig = pu.plot_maps(img, dp.refactor_labels(lab, parser[test_set]))
             fig.savefig(config.STAT_PATH + test_set+"_on_"+model_name+"2.png", dpi=300, bbox_inches='tight')
             i = i + lab.size
