@@ -71,6 +71,7 @@ if __name__ == '__main__':
             file.write("\n")
             file.close()
 
+            img = np.reshape(img, lab.shape)
             fig = pu.plot_maps(img, dp.refactor_labels(lab, parser[test_set]))
             fig.savefig(config.STAT_PATH + test_set+"_on_"+model_name+"2.png", dpi=300, bbox_inches='tight')
             i = i + lab.size
