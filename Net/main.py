@@ -11,7 +11,7 @@ from skimage.filters import threshold_otsu
 if __name__ == '__main__':
     train_set = "BAY AREA"
     test_set = "SANTA BARBARA"
-    model_name = "BASAM"
+    model_name = "BASAMotsu"
     distance = s.SAM
 
     parser = configparser.ConfigParser()
@@ -55,27 +55,46 @@ if __name__ == '__main__':
         print("Info: SAVING THE RESULTS...")
         i = 0
         for lab in labels:
+            # get the image
             img = prediction[i:i+lab.size]
-            # confusion matrix
-            lmap = np.reshape(img, lab.shape)
-            lmap = pu.spatial_correction(lmap)
-            cm = skm.confusion_matrix(y_test, lmap.ravel(), labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
 
-            # printing the metrics
+            # confusion matrix
+            cm = skm.confusion_matrix(y_test, img, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
+
+            # getting the metrics
             metrics = s.get_metrics(cm)
-            file = open(config.STAT_PATH + test_set+"_on_"+model_name+"_otsu_spatial_corr.csv", "w")
+
+            file = open(config.STAT_PATH + test_set+"_on_"+model_name+".csv", "w")
+            # printing columns names
             file.write("total_examples")
             for k in metrics.keys():
                 file.write(", " + k)
             file.write(", threshold")
             file.write("\n" + str(len(y_test)))
 
+            # printing metrics
             for k in metrics.keys():
                 file.write(", " + str(metrics[k]))
             file.write(", " + str(config.PRED_THRESHOLD))
+            file.write("\n" + str(len(y_test)))
+
+            # saving the map plot
+            lmap = np.reshape(img, lab.shape)
+            ground_t = dp.refactor_labels(lab, parser[test_set])
+            fig = pu.plot_maps(lmap, ground_t)
+            fig.savefig(config.STAT_PATH + test_set+"_on_"+model_name+".png", dpi=300, bbox_inches='tight')
+
+            # spacial correction + metrics + map
+            corrected_map = pu.spatial_correction(lmap)
+            sccm = skm.confusion_matrix(y_test, corrected_map.ravel(), labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
+            scmetrics = s.get_metrics(sccm)
+
+            for k in scmetrics.keys():
+                file.write(", " + str(scmetrics[k]))
+            file.write(", " + str(config.PRED_THRESHOLD))
             file.write("\n")
             file.close()
+            scfig = pu.plot_maps(corrected_map, ground_t)
+            scfig.savefig(config.STAT_PATH + test_set+"_on_"+model_name+"_corrected.png", dpi=300, bbox_inches='tight')
 
-            fig = pu.plot_maps(lmap, dp.refactor_labels(lab, parser[test_set]))
-            fig.savefig(config.STAT_PATH + test_set+"_on_"+model_name+"_otsu_spatial_corr.png", dpi=300, bbox_inches='tight')
             i = i + lab.size

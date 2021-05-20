@@ -12,7 +12,7 @@ from keras import callbacks
 
 from hyperas.distributions import uniform, choice
 from hyperas import optim
-from hyperopt import STATUS_OK, Trials, tpe
+from hyperopt import STATUS_OK, Trials, tpe, STATUS_FAIL
 
 from sklearn.model_selection import train_test_split
 import sklearn.metrics as skm
@@ -74,30 +74,39 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
     output.write("Trials")
     output.write("\ntrial_id, time, epochs, val_acc, loss, val_loss, learning_rate, batch_size, dropout_1," +
                  " dropout_2, test_overall_acc, test_true_positives, test_true_negatives, test_false_positives, " +
-                 "test_false_negatives, val_overall_acc, val_true_positives, val_true_negatives," +
-                 " val_false_positives, val_false_negatives")
+                 "test_false_negatives, test_thresh, val_overall_acc, val_true_positives, val_true_negatives," +
+                 " val_false_positives, val_false_negatives, val_thresh")
 
     for trial, test, validation in zip(trials.trials, config.test_cm, config.val_cm):
-        tcm = get_metrics(test)
-        vcm = get_metrics(validation)
-
-        output.write(
-            "\n%s, %d, %d, %f, %f, %f, %f, %d, %f, %f, %f, %d, %d, %d, %d, %f, %d, %d, %d, %d" % (
-                trial['tid'],
-                trial['result']['time'],
-                trial['result']['n_epochs'],
-                abs(trial['result']['loss']),
-                trial['result']['cont_loss'],
-                trial['result']['val_cont_loss'],
-                trial['misc']['vals']['lr'][0],
-                bs[trial['misc']['vals']['batch_size'][0]],
-                trial['misc']['vals']['first_dropout_rate'][0],
-                trial['misc']['vals']['first_dropout_rate_1'][0],
-                tcm["overall_accuracy"], tcm["true_positives_num"], tcm["true_negatives_num"],
-                tcm["false_positives_num"], tcm["false_negatives_num"],
-                vcm["overall_accuracy"], vcm["true_positives_num"], vcm["true_negatives_num"],
-                vcm["false_positives_num"], vcm["false_negatives_num"]
-            ))
+        if trial['result']['status'] == STATUS_FAIL:
+            output.write("\n%s, 0, 0, 0, 0, 0, %f, %d, %f, %f, FAIL" % (trial['tid'],
+                                                                        trial['misc']['vals']['lr'][0],
+                                                                        bs[trial['misc']['vals']['batch_size'][0]],
+                                                                        trial['misc']['vals']['first_dropout_rate'][0],
+                                                                        trial['misc']['vals']['first_dropout_rate_1'][0]
+                                                                        ))
+        else:
+            tcm = get_metrics(test)
+            vcm = get_metrics(validation)
+            output.write(
+                "\n%s, %d, %d, %f, %f, %f, %f, %d, %f, %f, %f, %d, %d, %d, %d, %f, %f, %d, %d, %d, %d, %f" % (
+                    trial['tid'],
+                    trial['result']['time'],
+                    trial['result']['n_epochs'],
+                    abs(trial['result']['loss']),
+                    trial['result']['cont_loss'],
+                    trial['result']['val_cont_loss'],
+                    trial['misc']['vals']['lr'][0],
+                    bs[trial['misc']['vals']['batch_size'][0]],
+                    trial['misc']['vals']['first_dropout_rate'][0],
+                    trial['misc']['vals']['first_dropout_rate_1'][0],
+                    tcm["overall_accuracy"], tcm["true_positives_num"], tcm["true_negatives_num"],
+                    tcm["false_positives_num"], tcm["false_negatives_num"],
+                    trial['result']['test_thresh'],
+                    vcm["overall_accuracy"], vcm["true_positives_num"], vcm["true_negatives_num"],
+                    vcm["false_positives_num"], vcm["false_negatives_num"],
+                    trial['result']['val_thresh']
+                ))
 
     output.write("\nBest model\n")
     best_run['batch_size'] = bs[best_run['batch_size']]
@@ -153,19 +162,28 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
 
     tic = time.time()
     # fitting the model
-    h = siamese.fit([x_train[:, 0], x_train[:, 1]], y_train,
-                    batch_size={{choice([32, 64, 128, 256, 512])}},
-                    epochs=150,
-                    verbose=2,
-                    callbacks=callbacks_list,
-                    validation_data=([x_val[:, 0], x_val[:, 1]], y_val))
+    config.PRED_THRESHOLD = 0.5
+
+    try:
+        h = siamese.fit([x_train[:, 0], x_train[:, 1]], y_train,
+                        batch_size={{choice([32, 64, 128, 256, 512])}},
+                        epochs=150,
+                        verbose=2,
+                        callbacks=callbacks_list,
+                        validation_data=([x_val[:, 0], x_val[:, 1]], y_val))
+    except:
+        print("Error in training")
+        config.test_cm.append(np.zeros(shape=(2,2)))
+        config.val_cm.append(np.zeros(shape=(2,2)))
+        return {'status':STATUS_FAIL}
+
     toc = time.time()
     # printing the best score
-    best_epoch_idx = np.argmin(h.history['val_loss'])
+    best_epoch_idx = np.nanargmin(h.history['val_loss'])
     # the score returned is the best epoch one
     loss = h.history['loss'][best_epoch_idx]
     val_loss = h.history['val_loss'][best_epoch_idx]
-    score = max(h.history['val_accuracy'][best_epoch_idx])
+    score = h.history['val_accuracy'][best_epoch_idx]
     print('Score:', score)
     print('Loss:', loss)
     print('Validation Loss:', val_loss)
@@ -179,6 +197,7 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
     prediction = np.where(distances.ravel() < config.PRED_THRESHOLD, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
     cm = skm.confusion_matrix(test_labels, prediction, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
     config.test_cm.append(cm)
+    test_thresh = config.PRED_THRESHOLD
 
     # making preditcion on the validation set
     val_distances = siamese.predict([x_val[:, 0], x_val[:, 1]])
@@ -188,6 +207,8 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
     val_prediction = np.where(val_distances.ravel() < config.PRED_THRESHOLD, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
     vcm = skm.confusion_matrix(y_val, val_prediction, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
     config.val_cm.append(vcm)
+    print('test threshold:' + str(test_thresh))
+    print('val threshold:' + str(config.PRED_THRESHOLD))
 
     print('Best Score', config.best_score)
     if score > config.best_score:
@@ -196,7 +217,8 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
         config.best_time = toc - tic
 
     return {'loss': -score, 'status': STATUS_OK, 'n_epochs': len(h.history['loss']),
-            'model': config.best_model, 'time': toc - tic, 'cont_loss': loss, 'val_cont_loss': val_loss}
+            'model': config.best_model, 'time': toc - tic, 'cont_loss': loss, 'val_cont_loss': val_loss,
+            'test_thresh': test_thresh, 'val_thresh': config.PRED_THRESHOLD}
 
 
 def build_net(input_shape, parameters):
@@ -226,7 +248,7 @@ def build_net(input_shape, parameters):
 
     adam = Adam(lr=parameters['lr'])
     siamese.compile(loss=contrastive_loss, optimizer=adam, metrics=[accuracy])
-    siamese.summary()
+    # siamese.summary()
     return siamese
 
 
@@ -245,7 +267,7 @@ def siamese_base_model(input_shape, first_drop, second_drop):
     hidden = Dropout(second_drop)(hidden)
     hidden = Dense(64, activation='relu')(hidden)
     # memo: sperimentare dopo aver ridotto i neuroni di espandere nuovamente
-        # a 128 e 512
+    # a 128 e 512
     return Model(input_layer, hidden)
 
 
@@ -286,7 +308,7 @@ def contrastive_loss(y_true, y_pred, margin=1):
     :param margin: positive value which helps to make largely dissimilar pairs to count toward the loss computation
     :return: the value of the contrastive loss
     """
-    #y_true = tf.cast(y_true, y_pred.dtype)
+    y_true = tf.cast(y_true, y_pred.dtype)
     square_pred = kb.square(y_pred)
     square_margin = kb.square(kb.maximum(margin - y_pred, 0))
     return kb.mean(y_true * square_pred + (1 - y_true) * square_margin)
