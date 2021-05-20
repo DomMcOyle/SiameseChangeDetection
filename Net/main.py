@@ -6,6 +6,7 @@ import numpy as np
 import config
 import configparser
 import pickle
+import matplotlib.pyplot as plt
 from skimage.filters import threshold_otsu
 
 if __name__ == '__main__':
@@ -57,6 +58,12 @@ if __name__ == '__main__':
         for lab in labels:
             # get the image
             img = prediction[i:i+lab.size]
+            dist = distances[i:i+lab.size]
+
+            # print the heatmap
+            im = plt.imshow(dist.reshape(lab.shape), cmap='hot', interpolation='nearest')
+            plt.colorbar()
+            plt.savefig(config.STAT_PATH + test_set+"_on_"+model_name+"_heatmap.png", dpi=300, bbox_inches='tight')
 
             # confusion matrix
             cm = skm.confusion_matrix(y_test, img, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
