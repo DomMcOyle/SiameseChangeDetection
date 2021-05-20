@@ -2,17 +2,16 @@ import dataprocessing as dp
 import siamese as s
 import predutils as pu
 import sklearn.metrics as skm
-import keras.models as km
-import os
 import numpy as np
 import config
 import configparser
 import pickle
+from skimage.filters import threshold_otsu
 
 if __name__ == '__main__':
-    train_set = "SANTA BARBARA"
-    test_set = "BAY AREA"
-    model_name = "SBSAM"
+    train_set = "BAY AREA"
+    test_set = "SANTA BARBARA"
+    model_name = "BASAM"
     distance = s.SAM
 
     parser = configparser.ConfigParser()
@@ -38,17 +37,19 @@ if __name__ == '__main__':
 
         # parameters loading
         print("Info: LOADING THE MODEL...")
-        param_file = open(config.MODEL_SAVE_PATH + model_name +"_param.pickle", "rb")
+        param_file = open(config.MODEL_SAVE_PATH + model_name + "_param.pickle", "rb")
         parameters = pickle.load(param_file)
         model = s.build_net(x_test[0, 0].shape, parameters)
 
-        model.load_weights(config.MODEL_SAVE_PATH + model_name +".h5")
+        model.load_weights(config.MODEL_SAVE_PATH + model_name + ".h5")
 
         # prediction
         print("Info: EXECUTING PREDICTIONS...")
         distances = model.predict([x_test[:, 0], x_test[:, 1]])
 
         # converting distances into labels
+        config.PRED_THRESHOLD = threshold_otsu(distances)
+        print(config.PRED_THRESHOLD)
         prediction = np.where(distances.ravel() < config.PRED_THRESHOLD, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
 
         print("Info: SAVING THE RESULTS...")
@@ -56,22 +57,25 @@ if __name__ == '__main__':
         for lab in labels:
             img = prediction[i:i+lab.size]
             # confusion matrix
-            cm = skm.confusion_matrix(y_test, img, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
+            lmap = np.reshape(img, lab.shape)
+            lmap = pu.spatial_correction(lmap)
+            cm = skm.confusion_matrix(y_test, lmap.ravel(), labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
 
             # printing the metrics
             metrics = s.get_metrics(cm)
-            file = open(config.STAT_PATH + test_set+"_on_"+model_name+"2.csv", "w")
+            file = open(config.STAT_PATH + test_set+"_on_"+model_name+"_otsu_spatial_corr.csv", "w")
             file.write("total_examples")
             for k in metrics.keys():
                 file.write(", " + k)
+            file.write(", threshold")
             file.write("\n" + str(len(y_test)))
 
             for k in metrics.keys():
                 file.write(", " + str(metrics[k]))
+            file.write(", " + str(config.PRED_THRESHOLD))
             file.write("\n")
             file.close()
 
-            img = np.reshape(img, lab.shape)
-            fig = pu.plot_maps(img, dp.refactor_labels(lab, parser[test_set]))
-            fig.savefig(config.STAT_PATH + test_set+"_on_"+model_name+"2.png", dpi=300, bbox_inches='tight')
+            fig = pu.plot_maps(lmap, dp.refactor_labels(lab, parser[test_set]))
+            fig.savefig(config.STAT_PATH + test_set+"_on_"+model_name+"_otsu_spatial_corr.png", dpi=300, bbox_inches='tight')
             i = i + lab.size

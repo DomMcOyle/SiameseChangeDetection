@@ -16,6 +16,7 @@ from hyperopt import STATUS_OK, Trials, tpe
 
 from sklearn.model_selection import train_test_split
 import sklearn.metrics as skm
+from skimage.filters import threshold_otsu
 import config
 
 
@@ -173,6 +174,7 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
     # making prediction on the test set
     distances = siamese.predict([test_set[:, 0], test_set[:, 1]])
 
+    config.PRED_THRESHOLD = threshold_otsu(distances)
     # converting distances into labels
     prediction = np.where(distances.ravel() < config.PRED_THRESHOLD, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
     cm = skm.confusion_matrix(test_labels, prediction, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
@@ -181,6 +183,7 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
     # making preditcion on the validation set
     val_distances = siamese.predict([x_val[:, 0], x_val[:, 1]])
 
+    config.PRED_THRESHOLD = threshold_otsu(val_distances)
     # converting distances into labels
     val_prediction = np.where(val_distances.ravel() < config.PRED_THRESHOLD, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
     vcm = skm.confusion_matrix(y_val, val_prediction, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
