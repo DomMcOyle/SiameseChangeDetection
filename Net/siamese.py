@@ -184,6 +184,7 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
     loss = h.history['loss'][best_epoch_idx]
     val_loss = h.history['val_loss'][best_epoch_idx]
     score = h.history['val_accuracy'][best_epoch_idx]
+    #TODO: cambiare score in val_loss
     print('Score:', score)
     print('Loss:', loss)
     print('Validation Loss:', val_loss)
@@ -261,6 +262,7 @@ def siamese_base_model(input_shape, first_drop, second_drop):
     :return: a Model with three dense layers interspersed with two dropout layers
     """
     input_layer = Input(input_shape)
+    #TODO: togliere questo primo livello
     hidden = Dense(input_shape[0], activation='relu')(input_layer)
     hidden = Dropout(first_drop)(hidden)
     hidden = Dense(128, activation='relu')(hidden)
