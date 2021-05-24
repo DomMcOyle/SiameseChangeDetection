@@ -8,6 +8,7 @@ UNKNOWN_LABEL = 2
 PRED_THRESHOLD = 0.5
 
 # the colors are assigned in ascending order
+# r = 0 => changed, b = 1 => unchanged, y = 2 => unknown
 COLOR_MAP = ['r', 'b', 'y']
 
 # global variables used for model optimization purposes (hyperas)

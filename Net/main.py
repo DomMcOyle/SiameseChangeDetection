@@ -1,17 +1,18 @@
 import dataprocessing as dp
 import siamese as s
+import predutils as pu
 import sklearn.metrics as skm
-import keras.models as km
-import os
 import numpy as np
 import config
 import configparser
 import pickle
+import matplotlib.pyplot as plt
+from skimage.filters import threshold_otsu
 
 if __name__ == '__main__':
-    train_set = "SANTA BARBARA"
-    test_set = "BAY AREA"
-    model_name = "SBSAM"
+    train_set = "BAY AREA"
+    test_set = "SANTA BARBARA"
+    model_name = "BASAMotsu"
     distance = s.SAM
 
     parser = configparser.ConfigParser()
@@ -37,39 +38,70 @@ if __name__ == '__main__':
 
         # parameters loading
         print("Info: LOADING THE MODEL...")
-        param_file = open(config.MODEL_SAVE_PATH + model_name +"_param.pickle", "rb")
+        param_file = open(config.MODEL_SAVE_PATH + model_name + "_param.pickle", "rb")
         parameters = pickle.load(param_file)
         model = s.build_net(x_test[0, 0].shape, parameters)
 
-        model.load_weights(config.MODEL_SAVE_PATH + model_name +".h5")
+        model.load_weights(config.MODEL_SAVE_PATH + model_name + ".h5")
 
         # prediction
         print("Info: EXECUTING PREDICTIONS...")
         distances = model.predict([x_test[:, 0], x_test[:, 1]])
 
         # converting distances into labels
+        config.PRED_THRESHOLD = threshold_otsu(distances)
+        print(config.PRED_THRESHOLD)
         prediction = np.where(distances.ravel() < config.PRED_THRESHOLD, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
 
         print("Info: SAVING THE RESULTS...")
         i = 0
         for lab in labels:
+            # get the image
             img = prediction[i:i+lab.size]
+            dist = distances[i:i+lab.size]
+
+            # print the heatmap
+            im = plt.imshow(dist.reshape(lab.shape), cmap='hot', interpolation='nearest')
+            plt.colorbar()
+            plt.savefig(config.STAT_PATH + test_set+"_on_"+model_name+"_heatmap.png", dpi=300, bbox_inches='tight')
+
             # confusion matrix
             cm = skm.confusion_matrix(y_test, img, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
 
-            # printing the metrics
+            # getting the metrics
             metrics = s.get_metrics(cm)
-            file = open(config.STAT_PATH + test_set+"_on_"+model_name+"2.csv", "w")
+
+            file = open(config.STAT_PATH + test_set+"_on_"+model_name+".csv", "w")
+            # printing columns names
             file.write("total_examples")
             for k in metrics.keys():
                 file.write(", " + k)
+            file.write(", threshold")
             file.write("\n" + str(len(y_test)))
 
+            # printing metrics
             for k in metrics.keys():
                 file.write(", " + str(metrics[k]))
+            file.write(", " + str(config.PRED_THRESHOLD))
+            file.write("\n" + str(len(y_test)))
+
+            # saving the map plot
+            lmap = np.reshape(img, lab.shape)
+            ground_t = dp.refactor_labels(lab, parser[test_set])
+            fig = pu.plot_maps(lmap, ground_t)
+            fig.savefig(config.STAT_PATH + test_set+"_on_"+model_name+".png", dpi=300, bbox_inches='tight')
+
+            # spacial correction + metrics + map
+            corrected_map = pu.spatial_correction(lmap)
+            sccm = skm.confusion_matrix(y_test, corrected_map.ravel(), labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
+            scmetrics = s.get_metrics(sccm)
+
+            for k in scmetrics.keys():
+                file.write(", " + str(scmetrics[k]))
+            file.write(", " + str(config.PRED_THRESHOLD))
             file.write("\n")
             file.close()
+            scfig = pu.plot_maps(corrected_map, ground_t)
+            scfig.savefig(config.STAT_PATH + test_set+"_on_"+model_name+"_corrected.png", dpi=300, bbox_inches='tight')
 
-            fig = s.plot_maps(img, dp.refactor_labels(lab, parser[test_set]))
-            fig.savefig(config.STAT_PATH + test_set+"_on_"+model_name+"2.png", dpi=300, bbox_inches='tight')
             i = i + lab.size

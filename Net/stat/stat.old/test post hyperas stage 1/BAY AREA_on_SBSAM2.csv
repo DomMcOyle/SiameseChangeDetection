@@ -1,2 +1,2 @@
 total_examples, overall_accuracy, false_positives_num, false_negatives_num, true_negatives_num, true_positives_num
-728160, 0.8703603114249502, 2416, 14768, 78002, 37366
+300000, 0.8259277908575006, 10796, 1995, 23415, 37275
