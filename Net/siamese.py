@@ -60,53 +60,62 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
     config.selected_score = score_function
 
     bs = [32, 64, 128, 256, 512]
+    neurons = [64, 128, 256]
     print("Info: BEGINNING SEARCH...")
     best_run, best_model = optim.minimize(model=siamese_model,
                                           data=data,
                                           functions=[siamese_base_model, siamese_model, build_net,
                                                      contrastive_loss, score_function, accuracy],
                                           algo=tpe.suggest,
-                                          max_evals=20,
+                                          max_evals=30,
                                           trials=trials
                                           )
     print("Info: SAVING RESULTS...")
     output = open(config.STAT_PATH + name + "_stats.csv", "w")
     output.write("Trials")
     output.write("\ntrial_id, time, epochs, score, loss, val_loss, learning_rate, batch_size, dropout_1," +
-                 " dropout_2, test_overall_acc, test_true_positives, test_true_negatives, test_false_positives, " +
+                 " dropout_2, layer_1, layer_2, layer_3, " +
+                 "test_overall_acc, test_true_positives, test_true_negatives, test_false_positives, " +
                  "test_false_negatives, test_thresh, val_overall_acc, val_true_positives, val_true_negatives," +
                  " val_false_positives, val_false_negatives, val_thresh")
 
     for trial, test, validation in zip(trials.trials, config.test_cm, config.val_cm):
         if trial['result']['status'] == STATUS_FAIL:
-            output.write("\n%s, 0, 0, 0, 0, 0, %f, %d, %f, %f, FAIL" % (trial['tid'],
-                                                                        trial['misc']['vals']['lr'][0],
-                                                                        bs[trial['misc']['vals']['batch_size'][0]],
-                                                                        trial['misc']['vals']['first_dropout_rate'][0],
-                                                                        trial['misc']['vals']['first_dropout_rate_1'][0]
-                                                                        ))
+            output.write("\n%s, 0, 0, 0, 0, 0, %f, %d, %f, %f, %d, %d, %d, FAIL" % (
+                trial['tid'],
+                trial['misc']['vals']['lr'][0],
+                bs[trial['misc']['vals']['batch_size'][0]],
+                trial['misc']['vals']['dropout_rate'][0],
+                trial['misc']['vals']['dropout_rate_1'][0],
+                neurons[trial['misc']['vals']['layer'][0]],
+                neurons[trial['misc']['vals']['layer_1'][0]],
+                neurons[trial['misc']['vals']['layer_2'][0]]
+            ))
         else:
             tcm = get_metrics(test)
             vcm = get_metrics(validation)
             output.write(
-                "\n%s, %d, %d, %f, %f, %f, %f, %d, %f, %f, %f, %d, %d, %d, %d, %f, %f, %d, %d, %d, %d, %f" % (
-                    trial['tid'],
-                    trial['result']['time'],
-                    trial['result']['n_epochs'],
-                    abs(trial['result']['loss']),
-                    trial['result']['cont_loss'],
-                    trial['result']['val_cont_loss'],
-                    trial['misc']['vals']['lr'][0],
-                    bs[trial['misc']['vals']['batch_size'][0]],
-                    trial['misc']['vals']['first_dropout_rate'][0],
-                    trial['misc']['vals']['first_dropout_rate_1'][0],
-                    tcm["overall_accuracy"], tcm["true_positives_num"], tcm["true_negatives_num"],
-                    tcm["false_positives_num"], tcm["false_negatives_num"],
-                    trial['result']['test_thresh'],
-                    vcm["overall_accuracy"], vcm["true_positives_num"], vcm["true_negatives_num"],
-                    vcm["false_positives_num"], vcm["false_negatives_num"],
-                    trial['result']['val_thresh']
-                ))
+                "\n%s, %d, %d, %f, %f, %f, %f, %d, %f, %f, %d, %d, %d, %f, %d, %d, %d, %d, %f, %f, %d, %d, %d, %d, %f"
+                % (trial['tid'],
+                   trial['result']['time'],
+                   trial['result']['n_epochs'],
+                   abs(trial['result']['loss']),
+                   trial['result']['cont_loss'],
+                   trial['result']['val_cont_loss'],
+                   trial['misc']['vals']['lr'][0],
+                   bs[trial['misc']['vals']['batch_size'][0]],
+                   trial['misc']['vals']['dropout_rate'][0],
+                   trial['misc']['vals']['dropout_rate_1'][0],
+                   neurons[trial['misc']['vals']['layer'][0]],
+                   neurons[trial['misc']['vals']['layer_1'][0]],
+                   neurons[trial['misc']['vals']['layer_2'][0]],
+                   tcm["overall_accuracy"], tcm["true_positives_num"], tcm["true_negatives_num"],
+                   tcm["false_positives_num"], tcm["false_negatives_num"],
+                   trial['result']['test_thresh'],
+                   vcm["overall_accuracy"], vcm["true_positives_num"], vcm["true_negatives_num"],
+                   vcm["false_positives_num"], vcm["false_negatives_num"],
+                   trial['result']['val_thresh']
+                   ))
 
     output.write("\nBest model\n")
     best_run['batch_size'] = bs[best_run['batch_size']]
@@ -116,6 +125,7 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
     print("Info: SAVING MODEL (PARAMETERS + WEIGHTS)...")
     best_run.pop('batch_size')
     best_run['score_function'] = score_function
+    best_run['margin'] = config.AVAILABLE_MARGIN[score_function.__name__]
 
     param_file = open(config.MODEL_SAVE_PATH + name + "_param.pickle", "wb")
     pickle.dump(best_run, param_file, pickle.HIGHEST_PROTOCOL)
@@ -140,14 +150,21 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
     """
     # building the net
     input_shape = train_set[0, 0].shape
-    first_dropout_rate = {{uniform(0, 0.5)}}
-    second_dropout_rate = {{uniform(0, 0.5)}}
+    dropout_rate = {{uniform(0, 0.5)}}
+    dropout_rate_1 = {{uniform(0, 0.5)}}
     lr = {{uniform(0.0001, 0.01)}}
+    layer = {{choice(64, 128, 256)}}
+    layer_1 = {{choice(64, 128, 256)}}
+    layer_2 = {{choice(64, 128, 256)}}
 
-    param = {'first_dropout_rate': first_dropout_rate,
-             'first_dropout_rate_1': second_dropout_rate,
+    param = {'dropout_rate': dropout_rate,
+             'dropout_rate_1': dropout_rate_1,
              'lr': lr,
-             'score_function': score_function}
+             'layer': layer,
+             'layer_1': layer_1,
+             'layer_2': layer_2,
+             'score_function': score_function,
+             'margin': config.AVAILABLE_MARGIN[score_function.__name__]}
 
     siamese = build_net(input_shape, param)
 
@@ -158,11 +175,11 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
     ]
 
     # generating the validation set
-    x_train, x_val, y_train, y_val = train_test_split(train_set, train_labels, stratify=train_labels, test_size=0.2)
+    x_train, x_val, y_train, y_val = train_test_split(train_set, train_labels, stratify=train_labels,
+                                                      test_size=config.VAL_SPLIT)
 
     tic = time.time()
     # fitting the model
-    config.PRED_THRESHOLD = 0.5
 
     try:
         h = siamese.fit([x_train[:, 0], x_train[:, 1]], y_train,
@@ -175,7 +192,7 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
         print("Error in training")
         config.test_cm.append(np.zeros(shape=(2, 2)))
         config.val_cm.append(np.zeros(shape=(2, 2)))
-        return {'status' :STATUS_FAIL}
+        return {'status': STATUS_FAIL}
 
     toc = time.time()
     # printing the best score
@@ -193,19 +210,18 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
     # making prediction on the test set
     distances = siamese.predict([test_set[:, 0], test_set[:, 1]])
 
-    config.PRED_THRESHOLD = threshold_otsu(distances)
+    test_thresh = threshold_otsu(distances)
     # converting distances into labels
-    prediction = np.where(distances.ravel() < config.PRED_THRESHOLD, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
+    prediction = np.where(distances.ravel() < test_thresh, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
     cm = skm.confusion_matrix(test_labels, prediction, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
     config.test_cm.append(cm)
-    test_thresh = config.PRED_THRESHOLD
 
     # making preditcion on the validation set
     val_distances = siamese.predict([x_val[:, 0], x_val[:, 1]])
 
-    config.PRED_THRESHOLD = threshold_otsu(val_distances)
+    val_thresh = threshold_otsu(val_distances)
     # converting distances into labels
-    val_prediction = np.where(val_distances.ravel() < config.PRED_THRESHOLD, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
+    val_prediction = np.where(val_distances.ravel() < val_thresh, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
     vcm = skm.confusion_matrix(y_val, val_prediction, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
     config.val_cm.append(vcm)
 
@@ -219,7 +235,7 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
 
     return {'loss': score, 'status': STATUS_OK, 'n_epochs': len(h.history['loss']),
             'model': config.best_model, 'time': toc - tic, 'cont_loss': loss, 'val_cont_loss': score,
-            'test_thresh': test_thresh, 'val_thresh': config.PRED_THRESHOLD}
+            'test_thresh': test_thresh, 'val_thresh': val_thresh}
 
 
 def build_net(input_shape, parameters):
@@ -229,14 +245,19 @@ def build_net(input_shape, parameters):
 
     :param input_shape: the shape for the input layer
     :param parameters: dict, contains the parameter for building the network:
-        'first_dropout_rate': the rate for the first dropout layer
-        'first_dropout_rate_1': the rate for the second dropout layer. The name is given
+        'dropout_rate': the rate for the first dropout layer
+        'dropout_rate_1': the rate for the second dropout layer. The name is given
                             by the hyperas optimization process
         'lr': the learning rate
+        'layer': the number of neurons for the first dense layer
+        'layer_1': the number of neurons for the second dense layer
+        'layer_2': the number of neurons for the third dense layer
         'score_function': the name of the score function selected for the net
+        'margin': a float indicating the margin to be used for the contrastive loss function
     :return: a compiled keras model with the given parameters
     """
-    base = siamese_base_model(input_shape, parameters['first_dropout_rate'], parameters['first_dropout_rate_1'])
+    base = siamese_base_model(input_shape, parameters['first_dropout_rate'], parameters['first_dropout_rate_1'],
+                              parameters['layer'], parameters['layer_1'], parameters['layer_2'])
 
     input_a = Input(input_shape)
     input_b = Input(input_shape)
@@ -249,25 +270,28 @@ def build_net(input_shape, parameters):
 
     adam = Adam(lr=parameters['lr'])
     siamese.compile(loss=contrastive_loss, optimizer=adam, metrics=[accuracy])
+    config.MARGIN = parameters['margin']
     # siamese.summary()
     return siamese
 
 
-def siamese_base_model(input_shape, first_drop, second_drop):
+def siamese_base_model(input_shape, first_drop, second_drop, first_layer, second_layer, third_layer):
     """
     Function creating the common base for the siamese network
     :param input_shape: the shape of the input for the first layer
     :param first_drop: a float between 0 and 1 indicating first dropout layer's drop rate
     :param second_drop: a float between 0 and 1 indicating second dropout layer's drop rate
+    :param first_layer: a positive integer indicating the number of neurons of the first layer
+    :param second_layer: a positive integer indicating the number of neurons of the second layer
+    :param third_layer: a positive integer indicating the number of neurons of the third layer
     :return: a Model with three dense layers interspersed with two dropout layers
     """
     input_layer = Input(input_shape)
-    #TODO: togliere questo primo livello
-    hidden = Dense(input_shape[0], activation='relu')(input_layer)
+    hidden = Dense(first_layer, activation='relu')(input_layer)
     hidden = Dropout(first_drop)(hidden)
-    hidden = Dense(128, activation='relu')(hidden)
+    hidden = Dense(second_layer, activation='relu')(hidden)
     hidden = Dropout(second_drop)(hidden)
-    hidden = Dense(64, activation='relu')(hidden)
+    hidden = Dense(third_layer, activation='relu')(hidden)
     # memo: sperimentare dopo aver ridotto i neuroni di espandere nuovamente
     # a 128 e 512
     return Model(input_layer, hidden)
@@ -302,17 +326,17 @@ def SAM(tens):
     return tf.math.acos(dot)
 
 
-def contrastive_loss(y_true, y_pred, margin=(np.pi/2)):
+def contrastive_loss(y_true, y_pred):
     """
     Function implementing the contrastive loss for the training phase
     :param y_true: the actual value for the pixel's class (1 not changed = same class, 0 changed = different class)
     :param y_pred: the predicted value for the pixel's class
-    :param margin: positive value which helps to make largely dissimilar pairs to count toward the loss computation
-    :return: the value of the contrastive loss
+    :return: the value of the contrastive loss. The margin, positive value which helps to make largely
+    dissimilar pairs to count toward the loss computation, is stored in config.py
     """
     y_true = tf.cast(y_true, y_pred.dtype)
     square_pred = kb.square(y_pred)
-    square_margin = kb.square(kb.maximum(margin - y_pred, 0))
+    square_margin = kb.square(kb.maximum(config.MARGIN - y_pred, 0))
     return kb.mean(y_true * square_pred + (1 - y_true) * square_margin)
 
 
@@ -340,5 +364,3 @@ def get_metrics(cm):
     metrics["true_negatives_num"] = tn
     metrics["true_positives_num"] = tp
     return metrics
-
-
