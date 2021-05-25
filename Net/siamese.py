@@ -72,7 +72,7 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
     print("Info: SAVING RESULTS...")
     output = open(config.STAT_PATH + name + "_stats.csv", "w")
     output.write("Trials")
-    output.write("\ntrial_id, time, epochs, val_acc, loss, val_loss, learning_rate, batch_size, dropout_1," +
+    output.write("\ntrial_id, time, epochs, score, loss, val_loss, learning_rate, batch_size, dropout_1," +
                  " dropout_2, test_overall_acc, test_true_positives, test_true_negatives, test_false_positives, " +
                  "test_false_negatives, test_thresh, val_overall_acc, val_true_positives, val_true_negatives," +
                  " val_false_positives, val_false_negatives, val_thresh")
@@ -211,7 +211,7 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
 
     print('test threshold: ' + str(test_thresh))
     print('val threshold: ' + str(config.PRED_THRESHOLD))
-
+    print('Best Score: ', str(config.best_score))
     if score < config.best_score:
         config.best_score = score
         config.best_model = siamese
@@ -302,7 +302,7 @@ def SAM(tens):
     return tf.math.acos(dot)
 
 
-def contrastive_loss(y_true, y_pred, margin=1):
+def contrastive_loss(y_true, y_pred, margin=(np.pi/2)):
     """
     Function implementing the contrastive loss for the training phase
     :param y_true: the actual value for the pixel's class (1 not changed = same class, 0 changed = different class)
