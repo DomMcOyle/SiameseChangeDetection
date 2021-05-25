@@ -7,8 +7,9 @@ STAT_PATH = "stat/"
 CHANGED_LABEL = 0
 UNCHANGED_LABEL = 1
 UNKNOWN_LABEL = 2
+AVAILABLE_THRESHOLD = {'euclidean_dist': 0.5, 'SAM': pi/4}
+AVAILABLE_MARGIN = {'euclidean_dist': 1, 'SAM': pi/2}
 PRED_THRESHOLD = 0.5
-AVAILABLE_MARGIN = {'euclidean_distance': 0.5, 'SAM': pi/2}
 MARGIN = 1
 VAL_SPLIT = 0.2
 

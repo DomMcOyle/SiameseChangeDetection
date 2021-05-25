@@ -58,6 +58,7 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
     config.test_set = test_set
     config.test_labels = test_labels
     config.selected_score = score_function
+    config.PRED_THRESHOLD = config.AVAILABLE_THRESHOLD[score_function.__name__]
 
     bs = [32, 64, 128, 256, 512]
     neurons = [64, 128, 256]
@@ -67,7 +68,7 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
                                           functions=[siamese_base_model, siamese_model, build_net,
                                                      contrastive_loss, score_function, accuracy],
                                           algo=tpe.suggest,
-                                          max_evals=30,
+                                          max_evals=5,
                                           trials=trials
                                           )
     print("Info: SAVING RESULTS...")
@@ -119,6 +120,9 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
 
     output.write("\nBest model\n")
     best_run['batch_size'] = bs[best_run['batch_size']]
+    best_run['layer'] = neurons[best_run['layer']]
+    best_run['layer_1'] = neurons[best_run['layer_1']]
+    best_run['layer_2'] = neurons[best_run['layer_2']]
     output.write(str(best_run))
     output.close()
 
@@ -153,9 +157,9 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
     dropout_rate = {{uniform(0, 0.5)}}
     dropout_rate_1 = {{uniform(0, 0.5)}}
     lr = {{uniform(0.0001, 0.01)}}
-    layer = {{choice(64, 128, 256)}}
-    layer_1 = {{choice(64, 128, 256)}}
-    layer_2 = {{choice(64, 128, 256)}}
+    layer = {{choice([64, 128, 256])}}
+    layer_1 = {{choice([64, 128, 256])}}
+    layer_2 = {{choice([64, 128, 256])}}
 
     param = {'dropout_rate': dropout_rate,
              'dropout_rate_1': dropout_rate_1,
@@ -181,6 +185,8 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
     tic = time.time()
     # fitting the model
 
+    print(config.PRED_THRESHOLD)
+    print(config.MARGIN)
     try:
         h = siamese.fit([x_train[:, 0], x_train[:, 1]], y_train,
                         batch_size={{choice([32, 64, 128, 256, 512])}},
@@ -226,7 +232,7 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
     config.val_cm.append(vcm)
 
     print('test threshold: ' + str(test_thresh))
-    print('val threshold: ' + str(config.PRED_THRESHOLD))
+    print('val threshold: ' + str(val_thresh))
     print('Best Score: ', str(config.best_score))
     if score < config.best_score:
         config.best_score = score
@@ -256,7 +262,7 @@ def build_net(input_shape, parameters):
         'margin': a float indicating the margin to be used for the contrastive loss function
     :return: a compiled keras model with the given parameters
     """
-    base = siamese_base_model(input_shape, parameters['first_dropout_rate'], parameters['first_dropout_rate_1'],
+    base = siamese_base_model(input_shape, parameters['dropout_rate'], parameters['dropout_rate_1'],
                               parameters['layer'], parameters['layer_1'], parameters['layer_2'])
 
     input_a = Input(input_shape)
