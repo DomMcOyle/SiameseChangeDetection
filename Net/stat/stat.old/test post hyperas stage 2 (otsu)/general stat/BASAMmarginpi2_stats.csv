@@ -1,5 +1,5 @@
 Trials
-trial_id, time, epochs, val_acc, loss, val_loss, learning_rate, batch_size, dropout_1, dropout_2, test_overall_acc, test_true_positives, test_true_negatives, test_false_positives, test_false_negatives, test_thresh, val_overall_acc, val_true_positives, val_true_negatives, val_false_positives, val_false_negatives, val_thresh
+trial_id, time, epochs, score, loss, val_loss, learning_rate, batch_size, dropout_1, dropout_2, test_overall_acc, test_true_positives, test_true_negatives, test_false_positives, test_false_negatives, test_thresh, val_overall_acc, val_true_positives, val_true_negatives, val_false_positives, val_false_negatives, val_thresh
 0, 44, 25, 0.099675, 0.106232, 0.099675, 0.004427, 64, 0.368585, 0.325898, 0.842364, 41473, 70184, 10234, 10661, 0.751651, 0.954821, 7505, 6528, 315, 349, 0.819146
 1, 59, 65, 0.086277, 0.101461, 0.086277, 0.003900, 128, 0.418333, 0.456415, 0.895686, 43346, 75379, 5039, 8788, 0.751651, 0.961829, 7581, 6555, 288, 273, 0.806874
 2, 12, 17, 0.108786, 0.120989, 0.108786, 0.003443, 256, 0.487909, 0.144331, 0.912231, 47267, 73651, 6767, 4867, 0.696427, 0.951146, 7503, 6476, 367, 351, 0.800738*
