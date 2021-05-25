@@ -72,7 +72,7 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
     print("Info: SAVING RESULTS...")
     output = open(config.STAT_PATH + name + "_stats.csv", "w")
     output.write("Trials")
-    output.write("\ntrial_id, time, epochs, val_acc, loss, val_loss, learning_rate, batch_size, dropout_1," +
+    output.write("\ntrial_id, time, epochs, score, loss, val_loss, learning_rate, batch_size, dropout_1," +
                  " dropout_2, test_overall_acc, test_true_positives, test_true_negatives, test_false_positives, " +
                  "test_false_negatives, test_thresh, val_overall_acc, val_true_positives, val_true_negatives," +
                  " val_false_positives, val_false_negatives, val_thresh")
@@ -173,22 +173,22 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
                         validation_data=([x_val[:, 0], x_val[:, 1]], y_val))
     except:
         print("Error in training")
-        config.test_cm.append(np.zeros(shape=(2,2)))
-        config.val_cm.append(np.zeros(shape=(2,2)))
-        return {'status':STATUS_FAIL}
+        config.test_cm.append(np.zeros(shape=(2, 2)))
+        config.val_cm.append(np.zeros(shape=(2, 2)))
+        return {'status' :STATUS_FAIL}
 
     toc = time.time()
     # printing the best score
     best_epoch_idx = np.nanargmin(h.history['val_loss'])
     # the score returned is the best epoch one
     loss = h.history['loss'][best_epoch_idx]
-    val_loss = h.history['val_loss'][best_epoch_idx]
-    score = h.history['val_accuracy'][best_epoch_idx]
-    #TODO: cambiare score in val_loss
-    print('Score:', score)
-    print('Loss:', loss)
-    print('Validation Loss:', val_loss)
-    print('Epochs:', len(h.history['loss']))
+    score = h.history['val_loss'][best_epoch_idx]
+    val_acc = h.history['val_accuracy'][best_epoch_idx]
+
+    print('Score: ' + str(score))
+    print('Loss: ' + str(loss))
+    print('Validation Accuracy: ' + str(val_acc))
+    print('Epochs: ' + str(len(h.history['loss'])))
 
     # making prediction on the test set
     distances = siamese.predict([test_set[:, 0], test_set[:, 1]])
@@ -208,17 +208,17 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
     val_prediction = np.where(val_distances.ravel() < config.PRED_THRESHOLD, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
     vcm = skm.confusion_matrix(y_val, val_prediction, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
     config.val_cm.append(vcm)
-    print('test threshold:' + str(test_thresh))
-    print('val threshold:' + str(config.PRED_THRESHOLD))
 
-    print('Best Score', config.best_score)
-    if score > config.best_score:
+    print('test threshold: ' + str(test_thresh))
+    print('val threshold: ' + str(config.PRED_THRESHOLD))
+    print('Best Score: ', str(config.best_score))
+    if score < config.best_score:
         config.best_score = score
         config.best_model = siamese
         config.best_time = toc - tic
 
-    return {'loss': -score, 'status': STATUS_OK, 'n_epochs': len(h.history['loss']),
-            'model': config.best_model, 'time': toc - tic, 'cont_loss': loss, 'val_cont_loss': val_loss,
+    return {'loss': score, 'status': STATUS_OK, 'n_epochs': len(h.history['loss']),
+            'model': config.best_model, 'time': toc - tic, 'cont_loss': loss, 'val_cont_loss': score,
             'test_thresh': test_thresh, 'val_thresh': config.PRED_THRESHOLD}
 
 
@@ -302,7 +302,7 @@ def SAM(tens):
     return tf.math.acos(dot)
 
 
-def contrastive_loss(y_true, y_pred, margin=1):
+def contrastive_loss(y_true, y_pred, margin=(np.pi/2)):
     """
     Function implementing the contrastive loss for the training phase
     :param y_true: the actual value for the pixel's class (1 not changed = same class, 0 changed = different class)

@@ -14,7 +14,7 @@ COLOR_MAP = ['r', 'b', 'y']
 # global variables used for model optimization purposes (hyperas)
 test_cm = None
 val_cm = None
-best_score = 0
+best_score = float("inf")
 best_model = None
 best_time = 0
 train_set = None
