@@ -298,6 +298,7 @@ def siamese_base_model(input_shape, first_drop, second_drop, first_layer, second
     hidden = Dense(second_layer, activation='relu')(hidden)
     hidden = Dropout(second_drop)(hidden)
     hidden = Dense(third_layer, activation='relu')(hidden)
+    # hidden = Dense(512, activation='sigmoid')(hidden)
     # memo: sperimentare dopo aver ridotto i neuroni di espandere nuovamente
     # a 128 e 512
     return Model(input_layer, hidden)
