@@ -12,7 +12,7 @@ from skimage.filters import threshold_otsu
 if __name__ == '__main__':
     train_set = "SANTA BARBARA"
     test_set = "BAY AREA"
-    model_name = "SBSAMprovaneuroni"
+    model_name = "SBED"
     distance = s.euclidean_dist
 
     parser = configparser.ConfigParser()

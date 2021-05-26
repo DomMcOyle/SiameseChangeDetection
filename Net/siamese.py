@@ -68,7 +68,7 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
                                           functions=[siamese_base_model, siamese_model, build_net,
                                                      contrastive_loss, score_function, accuracy],
                                           algo=tpe.suggest,
-                                          max_evals=5,
+                                          max_evals=30,
                                           trials=trials
                                           )
     print("Info: SAVING RESULTS...")
