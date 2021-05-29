@@ -1,3 +1,5 @@
+from numpy import pi
+
 DATA_CONFIG_PATH = "net.conf"
 MODEL_SAVE_PATH = "model/"
 STAT_PATH = "stat/"
@@ -5,7 +7,11 @@ STAT_PATH = "stat/"
 CHANGED_LABEL = 0
 UNCHANGED_LABEL = 1
 UNKNOWN_LABEL = 2
+AVAILABLE_THRESHOLD = {'euclidean_dist': 0.5, 'SAM': pi/4}
+AVAILABLE_MARGIN = {'euclidean_dist': 1, 'SAM': pi/2}
 PRED_THRESHOLD = 0.5
+MARGIN = 1
+VAL_SPLIT = 0.2
 
 # the colors are assigned in ascending order
 # r = 0 => changed, b = 1 => unchanged, y = 2 => unknown

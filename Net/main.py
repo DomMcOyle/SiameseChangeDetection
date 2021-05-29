@@ -10,10 +10,10 @@ import matplotlib.pyplot as plt
 from skimage.filters import threshold_otsu
 
 if __name__ == '__main__':
-    train_set = "SANTA BARBARA"
-    test_set = "BAY AREA"
-    model_name = "SBSAMmarginpi2"
-    distance = s.SAM
+    train_set = "BAY AREA"
+    test_set = "SANTA BARBARA"
+    model_name = "BAED3decr"
+    distance = s.euclidean_dist
 
     parser = configparser.ConfigParser()
     parser.read(config.DATA_CONFIG_PATH)
@@ -40,6 +40,7 @@ if __name__ == '__main__':
         print("Info: LOADING THE MODEL...")
         param_file = open(config.MODEL_SAVE_PATH + model_name + "_param.pickle", "rb")
         parameters = pickle.load(param_file)
+
         model = s.build_net(x_test[0, 0].shape, parameters)
 
         model.load_weights(config.MODEL_SAVE_PATH + model_name + ".h5")
