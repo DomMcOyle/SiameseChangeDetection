@@ -61,7 +61,9 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
     config.PRED_THRESHOLD = config.AVAILABLE_THRESHOLD[score_function.__name__]
 
     bs = [32, 64, 128, 256, 512]
-    neurons = [64, 128, 256]
+    neurons = [256, 512]
+    neurons_1 = [128, 256]
+    neurons_2 = [64, 128]
     print("Info: BEGINNING SEARCH...")
     best_run, best_model = optim.minimize(model=siamese_model,
                                           data=data,
@@ -82,15 +84,15 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
 
     for trial, test, validation in zip(trials.trials, config.test_cm, config.val_cm):
         if trial['result']['status'] == STATUS_FAIL:
-            output.write("\n%s, 0, 0, 0, 0, 0, %f, %d, %f, %f, %d, %d, %d, FAIL" % (
+            output.write("\n%s, -, -, -, -, -, %f, %d, %f, %f, %d, %d, %d, FAIL" % (
                 trial['tid'],
                 trial['misc']['vals']['lr'][0],
                 bs[trial['misc']['vals']['batch_size'][0]],
                 trial['misc']['vals']['dropout_rate'][0],
                 trial['misc']['vals']['dropout_rate_1'][0],
                 neurons[trial['misc']['vals']['layer'][0]],
-                neurons[trial['misc']['vals']['layer_1'][0]],
-                neurons[trial['misc']['vals']['layer_2'][0]]
+                neurons_1[trial['misc']['vals']['layer_1'][0]],
+                neurons_2[trial['misc']['vals']['layer_2'][0]]
             ))
         else:
             tcm = get_metrics(test)
@@ -108,8 +110,8 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
                    trial['misc']['vals']['dropout_rate'][0],
                    trial['misc']['vals']['dropout_rate_1'][0],
                    neurons[trial['misc']['vals']['layer'][0]],
-                   neurons[trial['misc']['vals']['layer_1'][0]],
-                   neurons[trial['misc']['vals']['layer_2'][0]],
+                   neurons_1[trial['misc']['vals']['layer_1'][0]],
+                   neurons_2[trial['misc']['vals']['layer_2'][0]],
                    tcm["overall_accuracy"], tcm["true_positives_num"], tcm["true_negatives_num"],
                    tcm["false_positives_num"], tcm["false_negatives_num"],
                    trial['result']['test_thresh'],
@@ -121,8 +123,8 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
     output.write("\nBest model\n")
     best_run['batch_size'] = bs[best_run['batch_size']]
     best_run['layer'] = neurons[best_run['layer']]
-    best_run['layer_1'] = neurons[best_run['layer_1']]
-    best_run['layer_2'] = neurons[best_run['layer_2']]
+    best_run['layer_1'] = neurons_1[best_run['layer_1']]
+    best_run['layer_2'] = neurons_2[best_run['layer_2']]
     output.write(str(best_run))
     output.close()
 
@@ -157,9 +159,9 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
     dropout_rate = {{uniform(0, 0.5)}}
     dropout_rate_1 = {{uniform(0, 0.5)}}
     lr = {{uniform(0.0001, 0.01)}}
-    layer = {{choice([64, 128, 256])}}
-    layer_1 = {{choice([64, 128, 256])}}
-    layer_2 = {{choice([64, 128, 256])}}
+    layer = {{choice([256, 512])}}
+    layer_1 = {{choice([128, 256])}}
+    layer_2 = {{choice([64, 128])}}
 
     param = {'dropout_rate': dropout_rate,
              'dropout_rate_1': dropout_rate_1,
@@ -184,9 +186,6 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
 
     tic = time.time()
     # fitting the model
-
-    print(config.PRED_THRESHOLD)
-    print(config.MARGIN)
     try:
         h = siamese.fit([x_train[:, 0], x_train[:, 1]], y_train,
                         batch_size={{choice([32, 64, 128, 256, 512])}},
@@ -299,8 +298,6 @@ def siamese_base_model(input_shape, first_drop, second_drop, first_layer, second
     hidden = Dropout(second_drop)(hidden)
     hidden = Dense(third_layer, activation='relu')(hidden)
     # hidden = Dense(512, activation='sigmoid')(hidden)
-    # memo: sperimentare dopo aver ridotto i neuroni di espandere nuovamente
-    # a 128 e 512
     return Model(input_layer, hidden)
 
 
