@@ -12,6 +12,7 @@ import dataprocessing as dp
 import siamese as s
 import sklearn.metrics as skm
 
+
 def spatial_correction(prediction, radius=3):
     """
     function returning a copy of the prediction map with spacial correction. Each pixel is resampled
@@ -90,7 +91,7 @@ def pseudo_labels(first_img, second_img, dist_function):
 
 if __name__ == '__main__':
     dataset = "SANTA BARBARA"
-    dist_func = s.SAM
+    dist_func = s.euclidean_dist
     parser = configparser.ConfigParser()
     parser.read(config.DATA_CONFIG_PATH)
     img_a, img_b, labels = dp.load_dataset(dataset, parser)
@@ -106,7 +107,7 @@ if __name__ == '__main__':
 
         metrics = s.get_metrics(cm)
 
-        file = open(config.STAT_PATH + dataset + "_" + dist_func.__name__ + "_pseudo.csv", "w")
+        file = open(config.STAT_PATH + dataset + "_" + dist_func.__name__ + "_pseudo_noscaling.csv", "w")
         # printing columns names
         file.write("total_examples")
         for k in metrics.keys():
@@ -124,7 +125,7 @@ if __name__ == '__main__':
         lmap = np.reshape(pseudo, lab.shape)
         ground_t = dp.refactor_labels(lab, parser[dataset])
         fig = plot_maps(lmap, ground_t)
-        fig.savefig(config.STAT_PATH + dataset + "_" + dist_func.__name__ + "_pseudo.png", dpi=300, bbox_inches='tight')
+        fig.savefig(config.STAT_PATH + dataset + "_" + dist_func.__name__ + "_pseudo_noscaling.png", dpi=300, bbox_inches='tight')
 
         # spacial correction + metrics + map
         corrected_map = spatial_correction(lmap)
@@ -138,7 +139,7 @@ if __name__ == '__main__':
         file.write("\n")
         file.close()
         scfig = plot_maps(corrected_map, ground_t)
-        scfig.savefig(config.STAT_PATH + dataset + "_" + dist_func.__name__ + "_pseudo_corrected.png", dpi=300,
+        scfig.savefig(config.STAT_PATH + dataset + "_" + dist_func.__name__ + "_pseudo_noscaling_corrected.png", dpi=300,
                       bbox_inches='tight')
 
         i = i+lab.size
