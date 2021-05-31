@@ -31,7 +31,7 @@ if __name__ == '__main__':
         model, run = s.hyperparam_search(x_train, y_train, x_test, y_test, distance, model_name)
 
     else:
-
+        #TODO: modificare questa porzione del main
         # dataset and model loading
         first_img, second_img, labels = dp.load_dataset(test_set, parser)
         x_test, y_test = dp.preprocessing(first_img, second_img, labels, parser[test_set], True)
