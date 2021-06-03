@@ -182,7 +182,7 @@ def preprocessing(limgA, limgB, llabel, conf_section, keep_unlabeled):
         imgB = np.append(imgB, imgr, axis=0)
 
     # min maxing
-    imgA, imgB = minmax_pair(imgA, imgB)
+    # imgA, imgB = minmax_pair(imgA, imgB)
 
 
     # linearization and refactoring of the labels
