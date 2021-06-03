@@ -10,10 +10,10 @@ import matplotlib.pyplot as plt
 from skimage.filters import threshold_otsu
 
 if __name__ == '__main__':
-    train_set = "BAY AREA"
-    test_set = "SANTA BARBARA"
-    model_name = "BAED3decr"
-    distance = s.euclidean_dist
+    train_set = "SANTA BARBARA"
+    test_set = "BAY AREA"
+    model_name = "SBSAMnoscaling"
+    distance = s.SAM
 
     parser = configparser.ConfigParser()
     parser.read(config.DATA_CONFIG_PATH)
