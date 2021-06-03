@@ -103,9 +103,9 @@ def load_dataset(name, conf):
     it also checks whether the dataset is available or not.
     :param name: the name of the dataset to be loaded. If it doesn't exist, an exception is raised
     :param conf: a config parser instance pre-loaded
-    :return: a list containing
-        - the first image
-        - the second image
+    :return: three list list containing
+        - the first images
+        - the second images
         - the labels
     """
     if name not in conf.sections():
@@ -125,7 +125,7 @@ def load_dataset(name, conf):
         imgAList.append(load_image(beforepath + os.sep + file, conf[name]))
         imgBList.append(load_image(afterpath + os.sep + file, conf[name]))
         labellist.append(load_label(labelpath + os.sep + file, conf[name]))
-        print(str(1)+"/"+str(len(os.listdir(beforepath))) + " pair(s) loaded")
+        print(str(i + 1)+"/"+str(len(os.listdir(beforepath))) + " pair(s) loaded")
         i = i + 1
 
     return imgAList, imgBList, labellist
@@ -153,7 +153,7 @@ def load_label(path, conf_section):
 
 def preprocessing(limgA, limgB, llabel, conf_section, keep_unlabeled):
     """
-    Function that takes in input a pair of images and a pixel-wise label map and returns
+    Function that takes in input a pair of list of images and a pixel-wise label map list and returns
     an array of minmaxscaled pixel pairs and an array of refactored labels.
     All the pixel pairs labeled as "unknown" can be discarded
     :param limgA: a list of 3-dim numpy array of shape (height, width, spectral bands) from where the first pixel of the pair
@@ -182,7 +182,7 @@ def preprocessing(limgA, limgB, llabel, conf_section, keep_unlabeled):
         imgB = np.append(imgB, imgr, axis=0)
 
     # min maxing
-    imgA, imgB = minmax_pair(imgA, imgB)
+    # imgA, imgB = minmax_pair(imgA, imgB)
 
 
     # linearization and refactoring of the labels
