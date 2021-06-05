@@ -222,7 +222,7 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
 
     test_thresh = threshold_otsu(distances)
     # converting distances into labels
-    prediction = np.where(distances.ravel() < test_thresh, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
+    prediction = np.where(distances.ravel() > test_thresh, config.CHANGED_LABEL, config.UNCHANGED_LABEL)
     cm = skm.confusion_matrix(test_labels, prediction, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
     config.test_cm.append(cm)
 
@@ -231,7 +231,7 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
 
     val_thresh = threshold_otsu(val_distances)
     # converting distances into labels
-    val_prediction = np.where(val_distances.ravel() < val_thresh, config.UNCHANGED_LABEL, config.CHANGED_LABEL)
+    val_prediction = np.where(val_distances.ravel() > val_thresh, config.CHANGED_LABEL, config.UNCHANGED_LABEL)
     vcm = skm.confusion_matrix(y_val, val_prediction, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
     config.val_cm.append(vcm)
 
