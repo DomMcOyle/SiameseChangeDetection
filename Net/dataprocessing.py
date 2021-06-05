@@ -151,7 +151,7 @@ def load_label(path, conf_section):
         raise NotImplementedError("Error: CANNOT LOAD LABEL FILE FORMAT")
 
 
-def preprocessing(limgA, limgB, llabel, conf_section, keep_unlabeled):
+def preprocessing(limgA, limgB, llabel, conf_section, keep_unlabeled, apply_rescaling=True):
     """
     Function that takes in input a pair of list of images and a pixel-wise label map list and returns
     an array of minmaxscaled pixel pairs and an array of refactored labels.
@@ -163,6 +163,7 @@ def preprocessing(limgA, limgB, llabel, conf_section, keep_unlabeled):
     :param llabel: a list of 2-dim array of shape (height, width) containing the label for each pixel pair.
     :param conf_section: a config parser section instance containing info obout the dataset
     :param keep_unlabeled: a Boolean flag. If True, keeps all the unlabeled pair of pixels (for testing purposes)
+    :param apply_rescaling: a Boolean flag. If True applies the minmax scaling on the pair of pixels (see minmax_pair)
     :return:a list containing:
             - an array containing the labeled pairs of pixels from the images
             - an array containing the labels of the respective pairs
@@ -182,8 +183,8 @@ def preprocessing(limgA, limgB, llabel, conf_section, keep_unlabeled):
         imgB = np.append(imgB, imgr, axis=0)
 
     # min maxing
-    imgA, imgB = minmax_pair(imgA, imgB)
-
+    if apply_rescaling is True:
+        imgA, imgB = minmax_pair(imgA, imgB)
 
     # linearization and refactoring of the labels
     label = np.empty(shape=(0))

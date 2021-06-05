@@ -89,15 +89,21 @@ def pseudo_labels(first_img, second_img, dist_function):
     return np.where(distances > threshold, config.CHANGED_LABEL, config.UNCHANGED_LABEL), threshold
 
 """
-    script for pseudolabels generation
+    script for pseudolabels generation without the minmaxscaling
 """
 if __name__ == '__main__':
     dataset = "SANTA BARBARA"
     dist_func = s.euclidean_dist
+
+    if dist_func is not s.euclidean_dist() or s.SAM():
+        raise NotImplementedError("Error: DISTANCE FUNCTION NOT IMPLEMENTED")
+
     parser = configparser.ConfigParser()
     parser.read(config.DATA_CONFIG_PATH)
+
     img_a, img_b, labels = dp.load_dataset(dataset, parser)
-    processed_ab, processed_lab = dp.preprocessing(img_a, img_b, labels, parser[dataset], True)
+    processed_ab, processed_lab = dp.preprocessing(img_a, img_b, labels, parser[dataset],
+                                                   keep_unlabeled=True, apply_rescaling=False)
     i = 0
     for lab in labels:
         pro_a = processed_ab[i:i+lab.size, 0]
