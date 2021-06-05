@@ -37,7 +37,7 @@ def data():
     return train_set, train_labels, test_set, test_labels, score_function
 
 
-def hyperparam_search(train_set, train_labels, test_set, test_labels, score_function, name):
+def hyperparam_search(train_set, train_labels, test_set, test_labels, score_function, name, hyperas_sett):
     """
     Function used for training and hyperparameter tuning
     :param train_set: the training set for the model. It is assumed to be an array of preprocessed pixel pairs
@@ -47,6 +47,7 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
                         length of test_set
     :param score_function: the function to be used for calculating distances. it can be SAM or euclidean_distance
     :param name: string containing the name of the model to be saved
+    :param hyperas_sett: a configparser section instance containing info about the general settings of hyperas choices
 
     :return: the function saves the various statistics on the trials done and the best model retrieved.
         Also it returns the best model and the time of its training
@@ -61,16 +62,18 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
     config.PRED_THRESHOLD = config.AVAILABLE_THRESHOLD[score_function.__name__]
 
     bs = [32, 64, 128, 256, 512]
-    neurons = [256, 512]
-    neurons_1 = [128, 256]
-    neurons_2 = [64, 128]
+    config.neurons = list(map(int, hyperas_sett.get("neurons").strip('][').split(', ')))
+    config.neurons_1 = list(map(int, hyperas_sett.get("neurons_1").strip('][').split(', ')))
+    config.neurons_2 = list(map(int, hyperas_sett.get("neurons_2").strip('][').split(', ')))
+    config.fourth_layer = hyperas_sett.getboolean("fourth_layer")
+
     print("Info: BEGINNING SEARCH...")
     best_run, best_model = optim.minimize(model=siamese_model,
                                           data=data,
                                           functions=[siamese_base_model, siamese_model, build_net,
                                                      contrastive_loss, score_function, accuracy],
                                           algo=tpe.suggest,
-                                          max_evals=30,
+                                          max_evals=2,
                                           trials=trials
                                           )
     print("Info: SAVING RESULTS...")
@@ -90,10 +93,9 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
                 bs[trial['misc']['vals']['batch_size'][0]],
                 trial['misc']['vals']['dropout_rate'][0],
                 trial['misc']['vals']['dropout_rate_1'][0],
-                224, 128, 64
-                # neurons[trial['misc']['vals']['layer'][0]],
-                # neurons_1[trial['misc']['vals']['layer_1'][0]],
-                # neurons_2[trial['misc']['vals']['layer_2'][0]]
+                config.neurons[trial['misc']['vals']['layer'][0]],
+                config.neurons_1[trial['misc']['vals']['layer_1'][0]],
+                config.neurons_2[trial['misc']['vals']['layer_2'][0]]
             ))
         else:
             tcm = get_metrics(test)
@@ -110,10 +112,9 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
                    bs[trial['misc']['vals']['batch_size'][0]],
                    trial['misc']['vals']['dropout_rate'][0],
                    trial['misc']['vals']['dropout_rate_1'][0],
-                   224, 128, 64,
-                   # neurons[trial['misc']['vals']['layer'][0]],
-                   # neurons_1[trial['misc']['vals']['layer_1'][0]],
-                   # neurons_2[trial['misc']['vals']['layer_2'][0]],
+                   config.neurons[trial['misc']['vals']['layer'][0]],
+                   config.neurons_1[trial['misc']['vals']['layer_1'][0]],
+                   config.neurons_2[trial['misc']['vals']['layer_2'][0]],
                    tcm["overall_accuracy"], tcm["true_positives_num"], tcm["true_negatives_num"],
                    tcm["false_positives_num"], tcm["false_negatives_num"],
                    trial['result']['test_thresh'],
@@ -124,21 +125,22 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
 
     output.write("\nBest model\n")
     best_run['batch_size'] = bs[best_run['batch_size']]
-    best_run['layer'] = 224 # neurons[best_run['layer']]
-    best_run['layer_1'] = 128 # neurons_1[best_run['layer_1']]
-    best_run['layer_2'] = 64 # neurons_2[best_run['layer_2']]
+    best_run['layer'] = config.neurons[best_run['layer']]
+    best_run['layer_1'] = config.neurons_1[best_run['layer_1']]
+    best_run['layer_2'] = config.neurons_2[best_run['layer_2']]
     output.write(str(best_run))
     output.close()
 
     print("Info: SAVING MODEL (PARAMETERS + WEIGHTS)...")
-    best_run.pop('batch_size')
     best_run['score_function'] = score_function
     best_run['margin'] = config.AVAILABLE_MARGIN[score_function.__name__]
+    best_run['fourth_layer'] = hyperas_sett.get("fourth_layer")
 
     param_file = open(config.MODEL_SAVE_PATH + name + "_param.pickle", "wb")
     pickle.dump(best_run, param_file, pickle.HIGHEST_PROTOCOL)
     param_file.close()
 
+    print(best_run)
     config.best_model.save_weights(config.MODEL_SAVE_PATH + name + ".h5")
 
     return config.best_model, config.best_time
@@ -161,9 +163,9 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
     dropout_rate = {{uniform(0, 0.5)}}
     dropout_rate_1 = {{uniform(0, 0.5)}}
     lr = {{uniform(0.0001, 0.01)}}
-    layer = 224 # {{choice([256, 512])}}
-    layer_1 = 128 # {{choice([128, 256])}}
-    layer_2 = 64 # {{choice([64, 128])}}
+    layer = {{choice(config.neurons)}}
+    layer_1 = {{choice(config.neurons_1)}}
+    layer_2 = {{choice(config.neurons_2)}}
 
     param = {'dropout_rate': dropout_rate,
              'dropout_rate_1': dropout_rate_1,
@@ -172,7 +174,8 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
              'layer_1': layer_1,
              'layer_2': layer_2,
              'score_function': score_function,
-             'margin': config.AVAILABLE_MARGIN[score_function.__name__]}
+             'margin': config.AVAILABLE_MARGIN[score_function.__name__],
+             'fourth_layer': config.fourth_layer}
 
     siamese = build_net(input_shape, param)
 
@@ -261,10 +264,13 @@ def build_net(input_shape, parameters):
         'layer_2': the number of neurons for the third dense layer
         'score_function': the name of the score function selected for the net
         'margin': a float indicating the margin to be used for the contrastive loss function
+        'fourth_layer': a boolean indicating whether to add or not the fourth layer to the base model, consisting
+                       of a Dense layer with 512 neurons and sigmoid activation function
     :return: a compiled keras model with the given parameters
     """
     base = siamese_base_model(input_shape, parameters['dropout_rate'], parameters['dropout_rate_1'],
-                              parameters['layer'], parameters['layer_1'], parameters['layer_2'])
+                              parameters['layer'], parameters['layer_1'], parameters['layer_2'],
+                              parameters['fourth_layer'])
 
     input_a = Input(input_shape)
     input_b = Input(input_shape)
@@ -282,7 +288,7 @@ def build_net(input_shape, parameters):
     return siamese
 
 
-def siamese_base_model(input_shape, first_drop, second_drop, first_layer, second_layer, third_layer):
+def siamese_base_model(input_shape, first_drop, second_drop, first_layer, second_layer, third_layer, add_fourth_layer):
     """
     Function creating the common base for the siamese network
     :param input_shape: the shape of the input for the first layer
@@ -291,6 +297,8 @@ def siamese_base_model(input_shape, first_drop, second_drop, first_layer, second
     :param first_layer: a positive integer indicating the number of neurons of the first layer
     :param second_layer: a positive integer indicating the number of neurons of the second layer
     :param third_layer: a positive integer indicating the number of neurons of the third layer
+    :param add_fourth_layer: a boolean indicating whether to add (True) or not (False) the fourth layer consisting of
+                            a Dense layer with 512 neurons and sigmoid activation function
     :return: a Model with three dense layers interspersed with two dropout layers
     """
     input_layer = Input(input_shape)
@@ -299,7 +307,8 @@ def siamese_base_model(input_shape, first_drop, second_drop, first_layer, second
     hidden = Dense(second_layer, activation='relu')(hidden)
     hidden = Dropout(second_drop)(hidden)
     hidden = Dense(third_layer, activation='relu')(hidden)
-    # hidden = Dense(512, activation='sigmoid')(hidden)
+    if add_fourth_layer is True:
+        hidden = Dense(512, activation='sigmoid')(hidden)
     return Model(input_layer, hidden)
 
 

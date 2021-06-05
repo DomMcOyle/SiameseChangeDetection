@@ -88,7 +88,9 @@ def pseudo_labels(first_img, second_img, dist_function):
     threshold = threshold_otsu(distances)
     return np.where(distances > threshold, config.CHANGED_LABEL, config.UNCHANGED_LABEL), threshold
 
-
+"""
+    script for pseudolabels generation
+"""
 if __name__ == '__main__':
     dataset = "SANTA BARBARA"
     dist_func = s.euclidean_dist

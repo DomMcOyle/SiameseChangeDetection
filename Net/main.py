@@ -12,8 +12,8 @@ from skimage.filters import threshold_otsu
 if __name__ == '__main__':
     train_set = "SANTA BARBARA"
     test_set = "BAY AREA"
-    model_name = "SBSAMnoscaling"
-    distance = s.SAM
+    model_name = "SBSAMnoscalingprova"
+    distance = s.euclidean_dist
 
     parser = configparser.ConfigParser()
     parser.read(config.DATA_CONFIG_PATH)
@@ -27,8 +27,15 @@ if __name__ == '__main__':
         x_train, y_train = dp.preprocessing(train_a_img, train_b_img, train_labels, parser[train_set], False)
         x_test, y_test = dp.preprocessing(test_a_img, test_b_img, test_labels, parser[test_set], True)
 
+        if distance is s.SAM:
+            hyperas_sett = "hyperas settings SAM"
+        elif distance is s.euclidean_dist:
+            hyperas_sett = "hyperas settings ED"
+        else:
+            raise NotImplementedError("Error: DISTANCE FUNCTION NOT IMPLEMENTED")
+
         print("Info: STARTING HYPERSEARCH PROCEDURE")
-        model, run = s.hyperparam_search(x_train, y_train, x_test, y_test, distance, model_name)
+        model, run = s.hyperparam_search(x_train, y_train, x_test, y_test, distance, model_name, parser[hyperas_sett])
 
     else:
         #TODO: modificare questa porzione del main

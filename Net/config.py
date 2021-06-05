@@ -28,3 +28,7 @@ test_set = None
 train_labels = None
 test_labels = None
 selected_score = None
+neurons = None
+neurons_1 = None
+neurons_2 = None
+fourth_layer = False
