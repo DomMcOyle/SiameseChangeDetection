@@ -95,7 +95,7 @@ if __name__ == '__main__':
     dataset = "SANTA BARBARA"
     dist_func = s.euclidean_dist
 
-    if dist_func is not s.euclidean_dist() or s.SAM():
+    if dist_func is not s.euclidean_dist and dist_func is not s.SAM:
         raise NotImplementedError("Error: DISTANCE FUNCTION NOT IMPLEMENTED")
 
     parser = configparser.ConfigParser()
