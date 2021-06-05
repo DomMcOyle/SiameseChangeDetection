@@ -1,0 +1,2 @@
+Trials
+trial_id, time, epochs, score, loss, val_loss, learning_rate, batch_size, dropout_1, dropout_2, layer_1, layer_2, layer_3, test_overall_acc, test_true_positives, test_true_negatives, test_false_positives, test_false_negatives, test_thresh, val_overall_acc, val_true_positives, val_true_negatives, val_false_positives, val_false_negatives, val_thresh
