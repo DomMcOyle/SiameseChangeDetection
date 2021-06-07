@@ -379,3 +379,37 @@ def get_metrics(cm):
     metrics["true_negatives_num"] = tn
     metrics["true_positives_num"] = tp
     return metrics
+
+
+def fine_tuning(model, batch_size, x_retrain, pseudo_labels):
+    """
+    Function executing fine tuning on a given model, in order to optimize future prediction on the same image
+    :param model: the keras model to be tuned with the pre-trained weights already loaded and already compiled
+    :param batch_size: an integer indicating the batch size to be used for the tuning
+    :param x_retrain: a 3-dim array containing the pair of pixel to be used for the tuning
+    :param pseudo_labels: a 1-dim map of pseudo-labels obtained with predutils.pseudo_labels(). Each pixel of the map is
+                        a label to be used for the tuning
+    :return: the tuned model on the given dataset
+    """
+
+    callbacks_list = [
+        callbacks.EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=10,
+                                restore_best_weights=True),
+    ]
+
+    # generating the validation set
+    x_train, x_val, y_train, y_val = train_test_split(x_retrain, pseudo_labels, stratify=pseudo_labels,
+                                                      test_size=config.VAL_SPLIT)
+
+    # fitting the model
+    try:
+        model.fit([x_train[:, 0], x_train[:, 1]], y_train,
+                  batch_size=batch_size,
+                  epochs=15,
+                  verbose=2,
+                  callbacks=callbacks_list,
+                  validation_data=([x_val[:, 0], x_val[:, 1]], y_val))
+    except:
+        raise
+
+    return model

@@ -12,7 +12,7 @@ from skimage.filters import threshold_otsu
 if __name__ == '__main__':
     train_set = "BAY AREA"
     test_set = "SANTA BARBARA"
-    model_name = "BAED3decr"
+    model_name = "BAEDotsu"
     distance_func = s.euclidean_dist
 
     parser = configparser.ConfigParser()
@@ -47,7 +47,6 @@ if __name__ == '__main__':
         param_file = open(config.MODEL_SAVE_PATH + model_name + "_param.pickle", "rb")
         parameters = pickle.load(param_file)
 
-        parameters['fourth_layer'] = False
         model = s.build_net(x_test[0, 0].shape, parameters)
 
         i = 0
@@ -59,7 +58,11 @@ if __name__ == '__main__':
             img_b = x_test[i:i+lab.size, 1]
             img_label = y_test[i:i+lab.size]
 
-            # TODO: inserire le pseudolabel
+            # Fine tuning phase
+            # The SAM function returned the best pseudo labels, so it will always be used
+            pseudo, thresh = pu.pseudo_labels(img_a, img_b, s.SAM)
+            config.PRED_THRESHOLD = config.AVAILABLE_THRESHOLD[distance_func.__name__]
+            model = s.fine_tuning(model, parameters['batch_size'], x_test[i:i+lab.size, :], pseudo)
 
             # prediction
             print("Info: EXECUTING PREDICTION " + str(i+1) + "/" + str(len(labels)))
