@@ -393,7 +393,7 @@ def fine_tuning(model, batch_size, x_retrain, pseudo_labels):
     """
 
     callbacks_list = [
-        callbacks.EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=10,
+        callbacks.EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=3,
                                 restore_best_weights=True),
     ]
 
@@ -403,12 +403,12 @@ def fine_tuning(model, batch_size, x_retrain, pseudo_labels):
 
     # fitting the model
     try:
-        model.fit([x_train[:, 0], x_train[:, 1]], y_train,
-                  batch_size=batch_size,
-                  epochs=15,
-                  verbose=2,
-                  callbacks=callbacks_list,
-                  validation_data=([x_val[:, 0], x_val[:, 1]], y_val))
+        h = model.fit([x_train[:, 0], x_train[:, 1]], y_train,
+                      batch_size=batch_size,
+                      epochs=15,
+                      verbose=2,
+                      callbacks=callbacks_list,
+                      validation_data=([x_val[:, 0], x_val[:, 1]], y_val))
     except:
         raise
 

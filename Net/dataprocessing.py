@@ -103,10 +103,11 @@ def load_dataset(name, conf):
     it also checks whether the dataset is available or not.
     :param name: the name of the dataset to be loaded. If it doesn't exist, an exception is raised
     :param conf: a config parser instance pre-loaded
-    :return: three list list containing
+    :return: four lists containing
         - the first images
         - the second images
         - the labels
+        - the names of the triplets (before image, after image, label)
     """
     if name not in conf.sections():
         raise ValueError(name + " dataset not available")
@@ -120,15 +121,18 @@ def load_dataset(name, conf):
 
     labellist = []
     labelpath = conf[name].get("labelPath")
+
     i = 0
+    namelist = []
     for file in os.listdir(beforepath):
         imgAList.append(load_image(beforepath + os.sep + file, conf[name]))
         imgBList.append(load_image(afterpath + os.sep + file, conf[name]))
         labellist.append(load_label(labelpath + os.sep + file, conf[name]))
+        namelist.append(os.path.splitext(file)[0])
         print(str(i + 1)+"/"+str(len(os.listdir(beforepath))) + " pair(s) loaded")
         i = i + 1
 
-    return imgAList, imgBList, labellist
+    return imgAList, imgBList, labellist, namelist
 
 
 def load_image(path, conf_section):

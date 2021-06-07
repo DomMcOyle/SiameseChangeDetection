@@ -20,8 +20,8 @@ if __name__ == '__main__':
 
     if int(parser["settings"].get("training")) == 1:
         # loading the pairs
-        train_a_img, train_b_img, train_labels = dp.load_dataset(train_set, parser)
-        test_a_img, test_b_img, test_labels = dp.load_dataset(test_set, parser)
+        train_a_img, train_b_img, train_labels, train_names = dp.load_dataset(train_set, parser)
+        test_a_img, test_b_img, test_labels, test_names = dp.load_dataset(test_set, parser)
 
         # executing preprocessing
         x_train, y_train = dp.preprocessing(train_a_img, train_b_img, train_labels, parser[train_set], False)
@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     else:
         # dataset and model loading
-        first_img, second_img, labels = dp.load_dataset(test_set, parser)
+        first_img, second_img, labels, names = dp.load_dataset(test_set, parser)
         x_test, y_test = dp.preprocessing(first_img, second_img, labels, parser[test_set], keep_unlabeled=True)
 
         # parameters loading
@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
         i = 0
         # The model will be tuned fresh for each image
-        # and each image must be extrated from the preprocessed matrix
+        # and each image must be extracted from the preprocessed matrix
         for lab in labels:
             model.load_weights(config.MODEL_SAVE_PATH + model_name + ".h5")
             img_a = x_test[i:i+lab.size, 0]
@@ -65,7 +65,7 @@ if __name__ == '__main__':
             model = s.fine_tuning(model, parameters['batch_size'], x_test[i:i+lab.size, :], pseudo)
 
             # prediction
-            print("Info: EXECUTING PREDICTION " + str(i+1) + "/" + str(len(labels)))
+            print("Info: EXECUTING PREDICTION OF " + names[i] + " " + str(i+1) + "/" + str(len(labels)))
             distances = model.predict([img_a, img_b])
 
             # computing threshold and turning distances into labels
@@ -77,7 +77,7 @@ if __name__ == '__main__':
             # print the heatmap
             im = plt.imshow(distances.reshape(lab.shape), cmap='hot', interpolation='nearest')
             plt.colorbar()
-            plt.savefig(config.STAT_PATH + test_set + str(i+1) + "_on_" + model_name + "_heatmap.png",
+            plt.savefig(config.STAT_PATH + test_set + "_" + names[i] + "_on_" + model_name + "_heatmap.png",
                         dpi=300, bbox_inches='tight')
 
             # 1. confusion matrix
@@ -86,7 +86,7 @@ if __name__ == '__main__':
             # 2. getting the metrics
             metrics = s.get_metrics(cm)
 
-            file = open(config.STAT_PATH + test_set + str(i+1) + "_on_" + model_name + ".csv", "w")
+            file = open(config.STAT_PATH + test_set + "_" + names[i] + "_on_" + model_name + ".csv", "w")
 
             # 3. printing column names
             file.write("total_examples")
@@ -108,7 +108,7 @@ if __name__ == '__main__':
             ground_t = dp.refactor_labels(lab, parser[test_set])
             # c. the maps are plotted with the appropriate function
             fig = pu.plot_maps(lmap, ground_t)
-            fig.savefig(config.STAT_PATH + test_set + str(i+1) + "_on_" + model_name + ".png",
+            fig.savefig(config.STAT_PATH + test_set + "_" + names[i] + "_on_" + model_name + ".png",
                         dpi=300, bbox_inches='tight')
 
             # replying steps 1, 2, 4 and 5 after the spacial correction
@@ -122,7 +122,7 @@ if __name__ == '__main__':
             file.write("\n")
             file.close()
             scfig = pu.plot_maps(corrected_map, ground_t)
-            scfig.savefig(config.STAT_PATH + test_set + str(i+1) + "_on_" + model_name + "_corrected.png",
+            scfig.savefig(config.STAT_PATH + test_set + "_" + names[i] + "_on_" + model_name + "_corrected.png",
                           dpi=300, bbox_inches='tight')
 
             i = i + lab.size
