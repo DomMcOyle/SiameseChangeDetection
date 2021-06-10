@@ -10,10 +10,10 @@ import matplotlib.pyplot as plt
 from skimage.filters import threshold_otsu
 
 if __name__ == '__main__':
-    train_set = "BAY AREA"
-    test_set = "SANTA BARBARA"
-    model_name = "BAEDotsu"
-    distance_func = s.euclidean_dist
+    train_set = "SANTA BARBARA"
+    test_set = "BAY AREA"
+    model_name = "SBSAMmarginpi2"
+    distance_func = s.SAM
 
     parser = configparser.ConfigParser()
     parser.read(config.DATA_CONFIG_PATH)
@@ -46,6 +46,7 @@ if __name__ == '__main__':
         print("Info: LOADING THE MODEL...")
         param_file = open(config.MODEL_SAVE_PATH + model_name + "_param.pickle", "rb")
         parameters = pickle.load(param_file)
+        param_file.close()
 
         model = s.build_net(x_test[0, 0].shape, parameters)
 
@@ -59,10 +60,21 @@ if __name__ == '__main__':
             img_label = y_test[i:i+lab.size]
 
             # Fine tuning phase
-            # The SAM function returned the best pseudo labels, so it will always be used
-            pseudo, thresh = pu.pseudo_labels(img_a, img_b, s.SAM)
+            # loading the dictionary containing distances and the threshold
+            pseudo_file = open(parser[test_set].get("pseudoPath") + "/" + names[i] + ".pickle", "rb")
+            pseudo_dict = pickle.load(pseudo_file)
+            pseudo_file.close()
+            pseudo = np.where(pseudo_dict['distances'] > pseudo_dict['threshold']
+                              , config.CHANGED_LABEL, config.UNCHANGED_LABEL )
+
             config.PRED_THRESHOLD = config.AVAILABLE_THRESHOLD[distance_func.__name__]
-            model = s.fine_tuning(model, parameters['batch_size'], x_test[i:i+lab.size, :], pseudo)
+            print("Info: PERFORMING SPATIAL CORRECTION ON PSEUDOLABELS...")
+            pseudo = pu.spatial_correction(np.reshape(pseudo, lab.shape)).ravel()
+
+            print("Info: PERFORMING FINE TUNING...")
+            model = s.fine_tuning(model,
+                                  parameters['batch_size'],
+                                  x_test[i:i+lab.size, :], pseudo)
 
             # prediction
             print("Info: EXECUTING PREDICTION OF " + names[i] + " " + str(i+1) + "/" + str(len(labels)))

@@ -94,11 +94,55 @@ def pseudo_labels(first_img, second_img, dist_function, return_distances=False):
     return returned_map, threshold
 
 
+def labels_by_percentage(x_data, pseudo_distances, threshold, percentage):
+    """
+    Function extracting the best pixel pairs according to their distance. The extraction si stratified with respect to
+    the complete collection of distances, so that the resulting set would contain the best percentage% of the closest
+    pairs and the best percentage% of the farthest pairs. In order to work correctly, the pairs must be in the same order
+    of the distances.
+
+    :param x_data: 3-dim array containing the pixel pairs processed with
+                   dataprocessing.preprocessing(..., keep_unlabeled=True)
+    :param pseudo_distances: 1-dim array containing the respecting distances of each pixel pair
+    :param threshold: float value indicating the threshold value above which a pair would be labeled as
+                      config.CHANGED_LABEL
+    :param percentage: float value in ]0,1] indicating the percentage of the best pairs to be extracted
+    :return: a 3 dim array containing the extracted pixel pairs and a 1-dim containing the labels
+            warning: the returned arrays are ordered so that the closest pairs are returned in order of "closeness"
+            before the farthest pairs (in order of distance), so a shuffle might be necessary
+    """
+    if percentage <= 0 or percentage > 1:
+        raise ValueError("ERROR: percentage must be a float in ]0,1]")
+
+    # selecting the indexes of the not-changed (N) pairs and of the changed (ones)
+    N = np.where(pseudo_distances <= threshold)
+    C = np.where(pseudo_distances > threshold)
+
+    # packing the distances of not-changed and changed pairs with the respective position in the array
+    nmatrix = np.c_[pseudo_distances[N], N[0]]
+    cmatrix = np.c_[pseudo_distances[C], C[0]]
+
+    # ordering the values in ascending order for unchanged pairs and descending for changed ones
+    # extreme values = more confidence in the respective labeling
+    nmatrix = nmatrix[nmatrix[:, 0].argsort()]
+    cmatrix = cmatrix[(-cmatrix)[:, 0].argsort()]
+
+    # generating a new array of labels for the selected data.
+    labels = np.concatenate((np.full(int(percentage*len(nmatrix)), config.UNCHANGED_LABEL),
+                            np.full(int(percentage*len(cmatrix)), config.CHANGED_LABEL)))
+
+    # concatenation of the selected pairs (first unchanged, then changed)
+    # the selection is given by extracting the desired percentage of ordered indexes from each class
+    selected_data = np.concatenate((x_data[nmatrix[:int(percentage*len(nmatrix)), 1].astype(int)],
+                                    x_data[cmatrix[:int(percentage*len(cmatrix)), 1].astype(int)]))
+
+    return selected_data, labels
+
 """
     script for pseudolabels generation without the minmaxscaling
 """
 if __name__ == '__main__':
-    dataset = "BAY AREA"
+    dataset = "SANTA BARBARA"
     dist_func = s.SAM
 
     if dist_func is not s.euclidean_dist and dist_func is not s.SAM:
@@ -119,7 +163,7 @@ if __name__ == '__main__':
 
         print("Info: SAVING DISTANCES OF " + names[i] + " " + str(i+1) + "/" + str(len(labels)))
         dist_file = open(parser[dataset].get("pseudoPath") + "/" + names[i] + ".pickle", "wb")
-        pickle.dump({'threshold': thresh, 'distances': dist}, dist_file, pickle.HIGHEST_PROTOCOL)
+        pickle.dump({'threshold': thresh, 'distances': dist, 'shape': lab.shape}, dist_file, pickle.HIGHEST_PROTOCOL)
         dist_file.close()
 
         pseudo = np.where(dist > thresh, config.CHANGED_LABEL, config.UNCHANGED_LABEL)

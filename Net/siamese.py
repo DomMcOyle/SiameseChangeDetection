@@ -309,6 +309,7 @@ def siamese_base_model(input_shape, first_drop, second_drop, first_layer, second
     hidden = Dense(third_layer, activation='relu')(hidden)
     if add_fourth_layer is True:
         hidden = Dense(512, activation='sigmoid')(hidden)
+    # TODO: provare con embedding
     return Model(input_layer, hidden)
 
 
@@ -405,7 +406,7 @@ def fine_tuning(model, batch_size, x_retrain, pseudo_labels):
     try:
         h = model.fit([x_train[:, 0], x_train[:, 1]], y_train,
                       batch_size=batch_size,
-                      epochs=15,
+                      epochs=150,
                       verbose=2,
                       callbacks=callbacks_list,
                       validation_data=([x_val[:, 0], x_val[:, 1]], y_val))
