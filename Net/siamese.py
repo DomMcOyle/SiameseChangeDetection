@@ -73,7 +73,7 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
                                           functions=[siamese_base_model, siamese_model, build_net,
                                                      contrastive_loss, score_function, accuracy],
                                           algo=tpe.suggest,
-                                          max_evals=2,
+                                          max_evals=30,
                                           trials=trials
                                           )
     print("Info: SAVING RESULTS...")
@@ -309,7 +309,6 @@ def siamese_base_model(input_shape, first_drop, second_drop, first_layer, second
     hidden = Dense(third_layer, activation='relu')(hidden)
     if add_fourth_layer is True:
         hidden = Dense(512, activation='sigmoid')(hidden)
-    # TODO: provare con embedding
     return Model(input_layer, hidden)
 
 
@@ -394,7 +393,7 @@ def fine_tuning(model, batch_size, x_retrain, pseudo_labels):
     """
 
     callbacks_list = [
-        callbacks.EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=3,
+        callbacks.EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=10,
                                 restore_best_weights=True),
     ]
 
@@ -410,6 +409,7 @@ def fine_tuning(model, batch_size, x_retrain, pseudo_labels):
                       verbose=2,
                       callbacks=callbacks_list,
                       validation_data=([x_val[:, 0], x_val[:, 1]], y_val))
+
     except:
         raise
 

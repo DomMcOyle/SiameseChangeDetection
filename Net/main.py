@@ -2,6 +2,7 @@ import dataprocessing as dp
 import siamese as s
 import predutils as pu
 import sklearn.metrics as skm
+import sklearn.utils as su
 import numpy as np
 import config
 import configparser
@@ -9,16 +10,19 @@ import pickle
 import matplotlib.pyplot as plt
 from skimage.filters import threshold_otsu
 
+
 if __name__ == '__main__':
     train_set = "SANTA BARBARA"
     test_set = "BAY AREA"
     model_name = "SBSAMmarginpi2"
     distance_func = s.SAM
+    percentage = 1
+
 
     parser = configparser.ConfigParser()
     parser.read(config.DATA_CONFIG_PATH)
 
-    if int(parser["settings"].get("training")) == 1:
+    if parser["settings"].getboolean("training") is True:
         # loading the pairs
         train_a_img, train_b_img, train_labels, train_names = dp.load_dataset(train_set, parser)
         test_a_img, test_b_img, test_labels, test_names = dp.load_dataset(test_set, parser)
@@ -64,17 +68,26 @@ if __name__ == '__main__':
             pseudo_file = open(parser[test_set].get("pseudoPath") + "/" + names[i] + ".pickle", "rb")
             pseudo_dict = pickle.load(pseudo_file)
             pseudo_file.close()
+            """
             pseudo = np.where(pseudo_dict['distances'] > pseudo_dict['threshold']
                               , config.CHANGED_LABEL, config.UNCHANGED_LABEL )
 
-            config.PRED_THRESHOLD = config.AVAILABLE_THRESHOLD[distance_func.__name__]
+
             print("Info: PERFORMING SPATIAL CORRECTION ON PSEUDOLABELS...")
             pseudo = pu.spatial_correction(np.reshape(pseudo, lab.shape)).ravel()
+            """
+            print(s.get_metrics(skm.confusion_matrix(
+                np.where(pseudo_dict['distances'] > pseudo_dict['threshold'], config.CHANGED_LABEL, config.UNCHANGED_LABEL),
+            img_label, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])))
+            best_data, pseudo = pu.labels_by_percentage(x_test[i:i+lab.size, :], pseudo_dict['distances'],
+                                                        pseudo_dict['threshold'], percentage)
 
             print("Info: PERFORMING FINE TUNING...")
+            config.PRED_THRESHOLD = config.AVAILABLE_THRESHOLD[distance_func.__name__]
             model = s.fine_tuning(model,
-                                  parameters['batch_size'],
-                                  x_test[i:i+lab.size, :], pseudo)
+                                  64,
+                                  #parameters['batch_size'],
+                                  best_data, pseudo)
 
             # prediction
             print("Info: EXECUTING PREDICTION OF " + names[i] + " " + str(i+1) + "/" + str(len(labels)))
@@ -89,8 +102,8 @@ if __name__ == '__main__':
             # print the heatmap
             im = plt.imshow(distances.reshape(lab.shape), cmap='hot', interpolation='nearest')
             plt.colorbar()
-            plt.savefig(config.STAT_PATH + test_set + "_" + names[i] + "_on_" + model_name + "_heatmap.png",
-                        dpi=300, bbox_inches='tight')
+            plt.savefig(config.STAT_PATH + test_set + "_" + names[i] + "_on_" + model_name + "_" + str(percentage)
+                        + "_heatmap.png", dpi=300, bbox_inches='tight')
 
             # 1. confusion matrix
             cm = skm.confusion_matrix(img_label, prediction, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
@@ -98,7 +111,8 @@ if __name__ == '__main__':
             # 2. getting the metrics
             metrics = s.get_metrics(cm)
 
-            file = open(config.STAT_PATH + test_set + "_" + names[i] + "_on_" + model_name + ".csv", "w")
+            file = open(config.STAT_PATH + test_set + "_" + names[i] + "_on_" + model_name+ "_" + str(percentage)
+                        + ".csv", "w")
 
             # 3. printing column names
             file.write("total_examples")
@@ -120,8 +134,8 @@ if __name__ == '__main__':
             ground_t = dp.refactor_labels(lab, parser[test_set])
             # c. the maps are plotted with the appropriate function
             fig = pu.plot_maps(lmap, ground_t)
-            fig.savefig(config.STAT_PATH + test_set + "_" + names[i] + "_on_" + model_name + ".png",
-                        dpi=300, bbox_inches='tight')
+            fig.savefig(config.STAT_PATH + test_set + "_" + names[i] + "_on_" + model_name + "_" + str(percentage)
+                        + ".png", dpi=300, bbox_inches='tight')
 
             # replying steps 1, 2, 4 and 5 after the spacial correction
             corrected_map = pu.spatial_correction(lmap)
@@ -134,7 +148,7 @@ if __name__ == '__main__':
             file.write("\n")
             file.close()
             scfig = pu.plot_maps(corrected_map, ground_t)
-            scfig.savefig(config.STAT_PATH + test_set + "_" + names[i] + "_on_" + model_name + "_corrected.png",
-                          dpi=300, bbox_inches='tight')
+            scfig.savefig(config.STAT_PATH + test_set + "_" + names[i] + "_on_" + model_name + "_" + str(percentage)
+                          + "_corrected.png", dpi=300, bbox_inches='tight')
 
             i = i + lab.size
