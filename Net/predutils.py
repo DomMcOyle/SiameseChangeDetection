@@ -13,6 +13,7 @@ import siamese as s
 import sklearn.metrics as skm
 import pickle
 
+
 def spatial_correction(prediction, radius=3):
     """
     function returning a copy of the prediction map with spacial correction. Each pixel is resampled
@@ -96,10 +97,10 @@ def pseudo_labels(first_img, second_img, dist_function, return_distances=False):
 
 def labels_by_percentage(x_data, pseudo_distances, threshold, percentage):
     """
-    Function extracting the best pixel pairs according to their distance. The extraction si stratified with respect to
-    the complete collection of distances, so that the resulting set would contain the best percentage% of the closest
-    pairs and the best percentage% of the farthest pairs. In order to work correctly, the pairs must be in the same order
-    of the distances.
+    Function extracting the position of best pixel pairs according to their distance. The extraction is stratified with
+    respect to the complete collection of distances, so that the resulting set would contain the best percentage% of the
+    closest pairs and the best percentage% of the farthest pairs. In order to work correctly, the pairs must be in the
+    same order of the distances.
 
     :param x_data: 3-dim array containing the pixel pairs processed with
                    dataprocessing.preprocessing(..., keep_unlabeled=True)
@@ -107,7 +108,7 @@ def labels_by_percentage(x_data, pseudo_distances, threshold, percentage):
     :param threshold: float value indicating the threshold value above which a pair would be labeled as
                       config.CHANGED_LABEL
     :param percentage: float value in ]0,1] indicating the percentage of the best pairs to be extracted
-    :return: a 3 dim array containing the extracted pixel pairs and a 1-dim containing the labels
+    :return: a 1 dim array containing the position of extracted pixel pairs and a 1-dim containing the labels
             warning: the returned arrays are ordered so that the closest pairs are returned in order of "closeness"
             before the farthest pairs (in order of distance), so a shuffle might be necessary
     """
@@ -133,10 +134,46 @@ def labels_by_percentage(x_data, pseudo_distances, threshold, percentage):
 
     # concatenation of the selected pairs (first unchanged, then changed)
     # the selection is given by extracting the desired percentage of ordered indexes from each class
-    selected_data = np.concatenate((x_data[nmatrix[:int(percentage*len(nmatrix)), 1].astype(int)],
-                                    x_data[cmatrix[:int(percentage*len(cmatrix)), 1].astype(int)]))
+    selected_data = np.concatenate(nmatrix[:int(percentage*len(nmatrix)), 1].astype(int),
+                                   cmatrix[:int(percentage*len(cmatrix)), 1].astype(int))
 
     return selected_data, labels
+
+
+def labels_by_neighborhood(x_data, labels, radius=3):
+    """
+    Function extracting the position of the best pixel pairs according to their neighborhood.
+    The extraction is performed by excluding the pairs surrounded with at least one label different from the one
+    assigned to them. In order to work correctly, the pairs must be in the same order of the labels and the labels
+    must be reshaped before.
+
+    :param x_data: 3-dim array containing the pixel pairs processed with
+                   dataprocessing.preprocessing(..., keep_unlabeled=True)
+    :param labels: a 2-dim array containing the predicted classes for each pair in x_data
+    :param radius: integer value indicating the radius of the square patch of the neighbouring pixels
+    :return: a 1 dim array containing the position of the extracted pixel pairs and a 1-dim containing the labels
+
+    """
+
+    selected_data = []
+    label_list = []
+    max_r, max_c = labels.shape
+    for row in range(max_r):
+        for col in range(max_c):
+            upper_x = max(0, row - (radius - 1))
+            upper_y = max(0, col - (radius - 1))
+            # note: the lower bound for the moving "kernel" must be one unit greater for each coordinate than the
+            # actual lower bound, since it will be discarded as the last index for the slices
+            lower_x = min(max_r, row + radius)
+            lower_y = min(max_c, col + radius)
+            counter = Counter(labels[upper_x:lower_x, upper_y:lower_y].ravel())
+            counts = counter.most_common()
+            if len(counts) == 1:
+                selected_data.append(row*max_c + col)
+                label_list.append(labels[row, col])
+    return selected_data, label_list
+
+
 
 """
     script for pseudolabels generation without the minmaxscaling

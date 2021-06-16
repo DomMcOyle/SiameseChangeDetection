@@ -188,6 +188,7 @@ def preprocessing(limgA, limgB, llabel, conf_section, keep_unlabeled, apply_resc
 
     # min maxing
     if apply_rescaling is True:
+        print("Info: APPLYING RESCALING...")
         imgA, imgB = minmax_pair(imgA, imgB)
 
     # linearization and refactoring of the labels
