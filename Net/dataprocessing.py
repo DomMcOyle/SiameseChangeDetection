@@ -86,7 +86,6 @@ def generate_set(img1, img2, labels, keep_unlabeled):
     """
     pair_list = []
     label_list = []
-    # TODO: check if there's a more efficient method
     for i in range(0, img1.shape[0]):
         if keep_unlabeled or labels[i] != config.UNKNOWN_LABEL:
             pair_list.append([img1[i], img2[i]])

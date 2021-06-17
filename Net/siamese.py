@@ -73,7 +73,7 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
                                           functions=[siamese_base_model, siamese_model, build_net,
                                                      contrastive_loss, score_function, accuracy],
                                           algo=tpe.suggest,
-                                          max_evals=30,
+                                          max_evals=50,
                                           trials=trials
                                           )
     print("Info: SAVING RESULTS...")
@@ -134,7 +134,7 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
     print("Info: SAVING MODEL (PARAMETERS + WEIGHTS)...")
     best_run['score_function'] = score_function
     best_run['margin'] = config.AVAILABLE_MARGIN[score_function.__name__]
-    best_run['fourth_layer'] = hyperas_sett.get("fourth_layer")
+    best_run['fourth_layer'] = hyperas_sett.getboolean("fourth_layer")
 
     param_file = open(config.MODEL_SAVE_PATH + name + "_param.pickle", "wb")
     pickle.dump(best_run, param_file, pickle.HIGHEST_PROTOCOL)

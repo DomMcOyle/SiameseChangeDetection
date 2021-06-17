@@ -2,7 +2,6 @@ import dataprocessing as dp
 import siamese as s
 import predutils as pu
 import sklearn.metrics as skm
-import sklearn.utils as su
 import numpy as np
 import config
 import configparser
@@ -12,15 +11,23 @@ from skimage.filters import threshold_otsu
 
 
 if __name__ == '__main__':
-    train_set = "SANTA BARBARA"
-    test_set = "BAY AREA"
-    model_name = "SBSAMmarginpi2"
-    distance_func = s.SAM
-    percentage = 1
-
-
     parser = configparser.ConfigParser()
     parser.read(config.DATA_CONFIG_PATH)
+
+    train_set = parser["settings"].get("train_set")
+    test_set = parser["settings"].get("test_set")
+    model_name = parser["settings"].get("model_name")
+    percentage = parser["settings"].get("pseudo_percentage")
+    radius = parser["settings"].get("pseudo_radius")
+
+    if parser["settings"] is "ED":
+        hyperas_sett = "hyperas settings ED"
+        distance_func = s.euclidean_dist
+    elif parser["settings"] is "SAM":
+        hyperas_sett = "hyperas settings SAM"
+        distance_func = s.SAM
+    else:
+        raise NotImplementedError("Error: DISTANCE FUNCTION NOT IMPLEMENTED")
 
     if parser["settings"].getboolean("training") is True:
         # loading the pairs
@@ -28,23 +35,23 @@ if __name__ == '__main__':
         test_a_img, test_b_img, test_labels, test_names = dp.load_dataset(test_set, parser)
 
         # executing preprocessing
-        x_train, y_train = dp.preprocessing(train_a_img, train_b_img, train_labels, parser[train_set], False)
-        x_test, y_test = dp.preprocessing(test_a_img, test_b_img, test_labels, parser[test_set], True)
-
-        if distance_func is s.SAM:
-            hyperas_sett = "hyperas settings SAM"
-        elif distance_func is s.euclidean_dist:
-            hyperas_sett = "hyperas settings ED"
-        else:
-            raise NotImplementedError("Error: DISTANCE FUNCTION NOT IMPLEMENTED")
+        x_train, y_train = dp.preprocessing(train_a_img, train_b_img, train_labels, parser[train_set],
+                                            keep_unlabeled=False,
+                                            apply_rescaling=parser["settings"].get("apply_rescaling"))
+        x_test, y_test = dp.preprocessing(test_a_img, test_b_img, test_labels, parser[test_set],
+                                          keep_unlabeled=True,
+                                          apply_rescaling=parser["settings"].get("apply_rescaling"))
 
         print("Info: STARTING HYPERSEARCH PROCEDURE")
-        model, run = s.hyperparam_search(x_train, y_train, x_test, y_test, distance_func, model_name, parser[hyperas_sett])
+        model, run = s.hyperparam_search(x_train, y_train, x_test, y_test, distance_func, model_name,
+                                         parser[hyperas_sett])
 
     else:
         # dataset and model loading
         first_img, second_img, labels, names = dp.load_dataset(test_set, parser)
-        x_test, y_test = dp.preprocessing(first_img, second_img, labels, parser[test_set], keep_unlabeled=True)
+        x_test, y_test = dp.preprocessing(first_img, second_img, labels, parser[test_set],
+                                          keep_unlabeled=True,
+                                          apply_rescaling=parser["settings"].get("apply_rescaling"))
 
         # parameters loading
         print("Info: LOADING THE MODEL...")
@@ -61,6 +68,7 @@ if __name__ == '__main__':
             model.load_weights(config.MODEL_SAVE_PATH + model_name + ".h5")
             img_a = x_test[i:i+lab.size, 0]
             img_b = x_test[i:i+lab.size, 1]
+            pairs = x_test[i:i+lab.size, :]
             img_label = y_test[i:i+lab.size]
 
             # Fine tuning phase
@@ -68,26 +76,36 @@ if __name__ == '__main__':
             pseudo_file = open(parser[test_set].get("pseudoPath") + "/" + names[i] + ".pickle", "rb")
             pseudo_dict = pickle.load(pseudo_file)
             pseudo_file.close()
-            """
             pseudo = np.where(pseudo_dict['distances'] > pseudo_dict['threshold']
                               , config.CHANGED_LABEL, config.UNCHANGED_LABEL )
 
-
             print("Info: PERFORMING SPATIAL CORRECTION ON PSEUDOLABELS...")
-            pseudo = pu.spatial_correction(np.reshape(pseudo, lab.shape)).ravel()
-            """
-            print(s.get_metrics(skm.confusion_matrix(
-                np.where(pseudo_dict['distances'] > pseudo_dict['threshold'], config.CHANGED_LABEL, config.UNCHANGED_LABEL),
+            pseudo = pu.spatial_correction(np.reshape(pseudo, lab.shape))
+
+            print(s.get_metrics(skm.confusion_matrix(pseudo.ravel(),
             img_label, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])))
+
+            """
             best_data, pseudo = pu.labels_by_percentage(x_test[i:i+lab.size, :], pseudo_dict['distances'],
                                                         pseudo_dict['threshold'], percentage)
-
+            """
+            best_data, pseudo = pu.labels_by_neighborhood(pseudo, radius=percentage)
+            """
+            a = np.full(lab.shape, 2)
+            b = a.ravel()
+            b[best_data] = pseudo
+            b = np.reshape(b, lab.shape)
+            pu.plot_maps(b,dp.refactor_labels(lab, parser[test_set]))
+            """
+            print(len(best_data))
+            print(pairs[best_data])
+            print(len(pseudo))
+            print(pseudo)
             print("Info: PERFORMING FINE TUNING...")
             config.PRED_THRESHOLD = config.AVAILABLE_THRESHOLD[distance_func.__name__]
-            model = s.fine_tuning(model,
-                                  64,
-                                  #parameters['batch_size'],
-                                  best_data, pseudo)
+#            model = s.fine_tuning(model,
+#                                  parameters['batch_size'],
+#                                  pairs[best_data], pseudo)
 
             # prediction
             print("Info: EXECUTING PREDICTION OF " + names[i] + " " + str(i+1) + "/" + str(len(labels)))

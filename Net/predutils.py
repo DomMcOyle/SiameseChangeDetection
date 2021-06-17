@@ -95,7 +95,7 @@ def pseudo_labels(first_img, second_img, dist_function, return_distances=False):
     return returned_map, threshold
 
 
-def labels_by_percentage(x_data, pseudo_distances, threshold, percentage):
+def labels_by_percentage(pseudo_distances, threshold, percentage):
     """
     Function extracting the position of best pixel pairs according to their distance. The extraction is stratified with
     respect to the complete collection of distances, so that the resulting set would contain the best percentage% of the
@@ -140,7 +140,7 @@ def labels_by_percentage(x_data, pseudo_distances, threshold, percentage):
     return selected_data, labels
 
 
-def labels_by_neighborhood(x_data, labels, radius=3):
+def labels_by_neighborhood(labels, radius=3):
     """
     Function extracting the position of the best pixel pairs according to their neighborhood.
     The extraction is performed by excluding the pairs surrounded with at least one label different from the one
@@ -154,6 +154,8 @@ def labels_by_neighborhood(x_data, labels, radius=3):
     :return: a 1 dim array containing the position of the extracted pixel pairs and a 1-dim containing the labels
 
     """
+    if radius < 1:
+        raise ValueError("ERROR: radius must be a int >=1")
 
     selected_data = []
     label_list = []
@@ -171,7 +173,7 @@ def labels_by_neighborhood(x_data, labels, radius=3):
             if len(counts) == 1:
                 selected_data.append(row*max_c + col)
                 label_list.append(labels[row, col])
-    return selected_data, label_list
+    return np.asarray(selected_data), np.asarray(label_list)
 
 
 
