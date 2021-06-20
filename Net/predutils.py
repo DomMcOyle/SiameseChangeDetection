@@ -12,6 +12,7 @@ import dataprocessing as dp
 import siamese as s
 import sklearn.metrics as skm
 import pickle
+import time
 
 
 def spatial_correction(prediction, radius=3):
@@ -95,18 +96,16 @@ def pseudo_labels(first_img, second_img, dist_function, return_distances=False):
     return returned_map, threshold
 
 
-def labels_by_percentage(pseudo_distances, threshold, percentage):
+def labels_by_percentage(pseudo_dict, percentage):
     """
     Function extracting the position of best pixel pairs according to their distance. The extraction is stratified with
     respect to the complete collection of distances, so that the resulting set would contain the best percentage% of the
     closest pairs and the best percentage% of the farthest pairs. In order to work correctly, the pairs must be in the
     same order of the distances.
 
-    :param x_data: 3-dim array containing the pixel pairs processed with
-                   dataprocessing.preprocessing(..., keep_unlabeled=True)
-    :param pseudo_distances: 1-dim array containing the respecting distances of each pixel pair
-    :param threshold: float value indicating the threshold value above which a pair would be labeled as
-                      config.CHANGED_LABEL
+    :param pseudo_dict: a dictionary containing the pre-computed distances of the pairs, the threshold for
+                        label-conversion and original shape of the images. Basically, it's the dumped result of
+                        the "main" script
     :param percentage: float value in ]0,1] indicating the percentage of the best pairs to be extracted
     :return: a 1 dim array containing the position of extracted pixel pairs and a 1-dim containing the labels
             warning: the returned arrays are ordered so that the closest pairs are returned in order of "closeness"
@@ -114,6 +113,10 @@ def labels_by_percentage(pseudo_distances, threshold, percentage):
     """
     if percentage <= 0 or percentage > 1:
         raise ValueError("ERROR: percentage must be a float in ]0,1]")
+
+    pseudo_distances = pseudo_dict["distances"]
+    threshold = pseudo_dict["threshold"]
+
 
     # selecting the indexes of the not-changed (N) pairs and of the changed (ones)
     N = np.where(pseudo_distances <= threshold)
@@ -140,26 +143,31 @@ def labels_by_percentage(pseudo_distances, threshold, percentage):
     return selected_data, labels
 
 
-def labels_by_neighborhood(labels, radius=3):
+def labels_by_neighborhood(pseudo_dict, radius=3):
     """
     Function extracting the position of the best pixel pairs according to their neighborhood.
     The extraction is performed by excluding the pairs surrounded with at least one label different from the one
-    assigned to them. In order to work correctly, the pairs must be in the same order of the labels and the labels
-    must be reshaped before.
+    assigned to them. The distances are converted to labels, reshaped and spatial corrected before the extraction.
+    In order to work correctly, the pairs must be in the same order of the labels.
 
-    :param x_data: 3-dim array containing the pixel pairs processed with
-                   dataprocessing.preprocessing(..., keep_unlabeled=True)
-    :param labels: a 2-dim array containing the predicted classes for each pair in x_data
+    :param pseudo_dict: a dictionary containing the pre-computed distances of the pairs, the threshold for
+                        label-conversion and original shape of the images. Basically, it's the dumped result of
+                        the "main" script
     :param radius: integer value indicating the radius of the square patch of the neighbouring pixels
     :return: a 1 dim array containing the position of the extracted pixel pairs and a 1-dim containing the labels
 
     """
+
     if radius < 1:
         raise ValueError("ERROR: radius must be a int >=1")
 
+    pseudo_lab = np.where(np.reshape(pseudo_dict["distances"] > pseudo_dict["threshold"],
+                                     config.CHANGED_LABEL, config.UNCHANGED_LABEL))
+    pseudo_lab = spatial_correction(np.reshape(pseudo_lab, pseudo_dict["shape"]))
+
     selected_data = []
     label_list = []
-    max_r, max_c = labels.shape
+    max_r, max_c = pseudo_lab.shape
     for row in range(max_r):
         for col in range(max_c):
             upper_x = max(0, row - (radius - 1))
@@ -168,84 +176,122 @@ def labels_by_neighborhood(labels, radius=3):
             # actual lower bound, since it will be discarded as the last index for the slices
             lower_x = min(max_r, row + radius)
             lower_y = min(max_c, col + radius)
-            counter = Counter(labels[upper_x:lower_x, upper_y:lower_y].ravel())
+            counter = Counter(pseudo_lab[upper_x:lower_x, upper_y:lower_y].ravel())
             counts = counter.most_common()
             if len(counts) == 1:
                 selected_data.append(row*max_c + col)
-                label_list.append(labels[row, col])
+                label_list.append(pseudo_lab[row, col])
     return np.asarray(selected_data), np.asarray(label_list)
 
 
-
 """
-    script for pseudolabels generation without the minmaxscaling
+    Script for the generation of pseudo labels as a dictionary with 3 entries:
+        - "distances": a 1-dim array of length (heightXwidth) containing the distances between each pair
+        - "threshold": a float value to be used as threshold when getting the labels from "distances". It is obtained
+                      with the otsu method
+        - "shape": a tuple containing the original shape of the image as (height, width)
 """
 if __name__ == '__main__':
-    dataset = "SANTA BARBARA"
-    dist_func = s.SAM
-
-    if dist_func is not s.euclidean_dist and dist_func is not s.SAM:
-        raise NotImplementedError("Error: DISTANCE FUNCTION NOT IMPLEMENTED")
-
+    # opening the settings file
     parser = configparser.ConfigParser()
     parser.read(config.DATA_CONFIG_PATH)
 
+    # getting dataset name, rescaling option and distance function
+    dataset = parser["settings"].get("train_set")
+
+    rescaling = parser["settings"].getboolean("apply_rescaling")
+
+    if parser["settings"].get("distance") == "ED":
+
+        distance_func = s.euclidean_dist
+    elif parser["settings"].get("distance") == "SAM":
+
+        distance_func = s.SAM
+    else:
+
+        raise NotImplementedError("Error: DISTANCE FUNCTION NOT IMPLEMENTED")
+
+    print("Info: STARTING PSEUDO LABEL GENERATION FOR " + dataset + " WITH " + parser["settings"].get("distance")
+          + " AND RESCALING=" + str(rescaling))
+
+    # loading and processing the dataset
     img_a, img_b, labels, names = dp.load_dataset(dataset, parser)
     processed_ab, processed_lab = dp.preprocessing(img_a, img_b, labels, parser[dataset],
-                                                   keep_unlabeled=True, apply_rescaling=False)
+                                                   keep_unlabeled=True,
+                                                   apply_rescaling=rescaling)
     i = 0
     for lab in labels:
+        # selecting a image from the list of pairs
         pro_a = processed_ab[i:i+lab.size, 0]
         pro_b = processed_ab[i:i+lab.size, 1]
         pro_lab = processed_lab[i:i+lab.size]
-        dist, thresh = pseudo_labels(pro_a, pro_b, dist_func, return_distances=True)
 
+        # generating distances
+        print("Info: GENERATING DISTANCES OF " + names[i] + " " + str(i+1) + "/" + str(len(labels)))
+        tic = time.time()
+        dist, thresh = pseudo_labels(pro_a, pro_b, distance_func, return_distances=True)
+        toc = time.time()
+
+        # dumping values in a file
         print("Info: SAVING DISTANCES OF " + names[i] + " " + str(i+1) + "/" + str(len(labels)))
         dist_file = open(parser[dataset].get("pseudoPath") + "/" + names[i] + ".pickle", "wb")
         pickle.dump({'threshold': thresh, 'distances': dist, 'shape': lab.shape}, dist_file, pickle.HIGHEST_PROTOCOL)
         dist_file.close()
 
+        print("Info: COMPUTING METRICS AND MAP PLOT...")
         pseudo = np.where(dist > thresh, config.CHANGED_LABEL, config.UNCHANGED_LABEL)
 
         cm = skm.confusion_matrix(pro_lab, pseudo, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
 
         metrics = s.get_metrics(cm)
 
-        file = open(config.STAT_PATH + dataset + "_" + names[i] + "_" + dist_func.__name__ + "_pseudo_noscaling.csv",
-                    "w")
+        file = open(config.STAT_PATH + dataset + "_" + names[i] + "_" + parser["settings"].get("distance")
+                    + "_pseudo_rescaling_" + str(rescaling) + ".csv", "w")
+
         # printing columns names
-        file.write("total_examples")
+        file.write("total_examples, threshold")
         for k in metrics.keys():
             file.write(", " + k)
-        file.write(", threshold")
-        file.write("\n" + str(len(pro_lab)))
+        file.write(", time")
+        for k in metrics.keys():
+            file.write(", " + k + "_correction")
+        file.write(", time_correction")
+        file.write("\n" + str(len(pro_lab)) + ", " + str(thresh))
 
         # printing metrics
         for k in metrics.keys():
             file.write(", " + str(metrics[k]))
-        file.write(", " + str(thresh))
-        file.write("\n" + str(len(pro_lab)))
+        file.write(", " + str(toc-tic))
 
         # saving the map plot
-        lmap = np.reshape(pseudo, lab.shape)
+        pseudo_map = np.reshape(pseudo, lab.shape)
         ground_t = dp.refactor_labels(lab, parser[dataset])
-        fig = plot_maps(lmap, ground_t)
-        fig.savefig(config.STAT_PATH + dataset+ "_" + names[i] + "_" + dist_func.__name__ + "_pseudo_noscaling.png",
+        fig = plot_maps(pseudo_map, ground_t)
+        fig.savefig(config.STAT_PATH + dataset + "_" + names[i] + "_" + parser["settings"].get("distance")
+                    + "_pseudo_rescaling_" + str(rescaling) + ".png",
                     dpi=300, bbox_inches='tight')
 
-        # spacial correction + metrics + map
-        corrected_map = spatial_correction(lmap)
+        print("Info: EXECUTING SPATIAL CORRECTION AND COMPUTING METRICS...")
+        # spatial correction
+        tic = time.time()
+        corrected_map = spatial_correction(pseudo_map)
+        toc = time.time()
+
+        # metrics
         sccm = skm.confusion_matrix(pro_lab, corrected_map.ravel(),
                                     labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
         scmetrics = s.get_metrics(sccm)
 
+        # saving the metrics
         for k in scmetrics.keys():
             file.write(", " + str(scmetrics[k]))
-        file.write(", " + str(thresh))
+        file.write(", " + str(toc - tic))
         file.write("\n")
         file.close()
+
+        # map plotting
         scfig = plot_maps(corrected_map, ground_t)
-        scfig.savefig(config.STAT_PATH + dataset + "_" + names[i] + "_" + dist_func.__name__ +
-                      "_pseudo_noscaling_corrected.png", dpi=300, bbox_inches='tight')
+        scfig.savefig(config.STAT_PATH + dataset + "_" + names[i] + "_" + parser["settings"].get("distance")
+                      + "_pseudo_rescaling_" + str(rescaling) + "_corrected.png", dpi=300, bbox_inches='tight')
 
         i = i+lab.size
