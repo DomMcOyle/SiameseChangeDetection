@@ -12,6 +12,7 @@ AVAILABLE_MARGIN = {'euclidean_dist': 1, 'SAM': pi/2}
 PRED_THRESHOLD = 0.5
 MARGIN = 1
 VAL_SPLIT = 0.2
+MAX_EVALS = 30
 
 # the colors are assigned in ascending order
 # r = 0 => changed, b = 1 => unchanged, y = 2 => unknown
@@ -28,6 +29,8 @@ test_set = None
 train_labels = None
 test_labels = None
 selected_score = None
+batch_size = None
+max_dropout = 0
 neurons = None
 neurons_1 = None
 neurons_2 = None

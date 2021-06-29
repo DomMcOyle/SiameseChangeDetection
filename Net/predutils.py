@@ -117,7 +117,6 @@ def labels_by_percentage(pseudo_dict, percentage):
     pseudo_distances = pseudo_dict["distances"]
     threshold = pseudo_dict["threshold"]
 
-
     # selecting the indexes of the not-changed (N) pairs and of the changed (ones)
     N = np.where(pseudo_distances <= threshold)
     C = np.where(pseudo_distances > threshold)
@@ -137,8 +136,8 @@ def labels_by_percentage(pseudo_dict, percentage):
 
     # concatenation of the selected pairs (first unchanged, then changed)
     # the selection is given by extracting the desired percentage of ordered indexes from each class
-    selected_data = np.concatenate(nmatrix[:int(percentage*len(nmatrix)), 1].astype(int),
-                                   cmatrix[:int(percentage*len(cmatrix)), 1].astype(int))
+    selected_data = np.concatenate((nmatrix[:int(percentage*len(nmatrix)), 1].astype(int),
+                                   cmatrix[:int(percentage*len(cmatrix)), 1].astype(int)))
 
     return selected_data, labels
 
@@ -161,8 +160,8 @@ def labels_by_neighborhood(pseudo_dict, radius=3):
     if radius < 1:
         raise ValueError("ERROR: radius must be a int >=1")
 
-    pseudo_lab = np.where(np.reshape(pseudo_dict["distances"] > pseudo_dict["threshold"],
-                                     config.CHANGED_LABEL, config.UNCHANGED_LABEL))
+    pseudo_lab = np.where(np.reshape(pseudo_dict["distances"], pseudo_dict["shape"]) > pseudo_dict["threshold"],
+                                     config.CHANGED_LABEL, config.UNCHANGED_LABEL)
     pseudo_lab = spatial_correction(np.reshape(pseudo_lab, pseudo_dict["shape"]))
 
     selected_data = []

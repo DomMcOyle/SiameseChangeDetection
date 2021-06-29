@@ -37,7 +37,7 @@ def data():
     return train_set, train_labels, test_set, test_labels, score_function
 
 
-def hyperparam_search(train_set, train_labels, test_set, test_labels, score_function, name, hyperas_sett):
+def hyperparam_search(train_set, train_labels, test_set, test_labels, distance_function, name, hyperas_sett):
     """
     Function used for training and hyperparameter tuning
     :param train_set: the training set for the model. It is assumed to be an array of preprocessed pixel pairs
@@ -45,7 +45,7 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
     :param test_set: the test set for the model. The assumption are the same of train_set
     :param test_labels: a 1-dim array containing the test labels for metrics computation. it is assumed it's the same
                         length of test_set
-    :param score_function: the function to be used for calculating distances. it can be SAM or euclidean_distance
+    :param distance_function: the function to be used for calculating distances. it can be SAM or euclidean_distance
     :param name: string containing the name of the model to be saved
     :param hyperas_sett: a configparser section instance containing info about the general settings of hyperas choices
 
@@ -58,22 +58,24 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
     config.train_labels = train_labels
     config.test_set = test_set
     config.test_labels = test_labels
-    config.selected_score = score_function
-    config.PRED_THRESHOLD = config.AVAILABLE_THRESHOLD[score_function.__name__]
+    config.selected_score = distance_function
 
-    bs = [32, 64, 128, 256, 512]
     config.neurons = list(map(int, hyperas_sett.get("neurons").strip('][').split(', ')))
     config.neurons_1 = list(map(int, hyperas_sett.get("neurons_1").strip('][').split(', ')))
     config.neurons_2 = list(map(int, hyperas_sett.get("neurons_2").strip('][').split(', ')))
     config.fourth_layer = hyperas_sett.getboolean("fourth_layer")
+    config.batch_size = list(map(hyperas_sett.get("batch_size").strip('][').split(', ')))
+    config.max_dropout = float(hyperas_sett.get("max_dropout"))
+
+    bs = config.batch_size
 
     print("Info: BEGINNING SEARCH...")
     best_run, best_model = optim.minimize(model=siamese_model,
                                           data=data,
                                           functions=[siamese_base_model, siamese_model, build_net,
-                                                     contrastive_loss, score_function, accuracy],
+                                                     contrastive_loss, distance_function, accuracy],
                                           algo=tpe.suggest,
-                                          max_evals=50,
+                                          max_evals=config.MAX_EVALS,
                                           trials=trials
                                           )
     print("Info: SAVING RESULTS...")
@@ -132,8 +134,8 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, score_func
     output.close()
 
     print("Info: SAVING MODEL (PARAMETERS + WEIGHTS)...")
-    best_run['score_function'] = score_function
-    best_run['margin'] = config.AVAILABLE_MARGIN[score_function.__name__]
+    best_run['score_function'] = distance_function
+    best_run['margin'] = config.AVAILABLE_MARGIN[distance_function.__name__]
     best_run['fourth_layer'] = hyperas_sett.getboolean("fourth_layer")
 
     param_file = open(config.MODEL_SAVE_PATH + name + "_param.pickle", "wb")
@@ -160,8 +162,8 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
     """
     # building the net
     input_shape = train_set[0, 0].shape
-    dropout_rate = {{uniform(0, 0.5)}}
-    dropout_rate_1 = {{uniform(0, 0.5)}}
+    dropout_rate = {{uniform(0, config.max_dropout)}}
+    dropout_rate_1 = {{uniform(0, config.max_dropout)}}
     lr = {{uniform(0.0001, 0.01)}}
     layer = {{choice(config.neurons)}}
     layer_1 = {{choice(config.neurons_1)}}
@@ -193,7 +195,7 @@ def siamese_model(train_set, train_labels, test_set, test_labels, score_function
     # fitting the model
     try:
         h = siamese.fit([x_train[:, 0], x_train[:, 1]], y_train,
-                        batch_size={{choice([32, 64, 128, 256, 512])}},
+                        batch_size={{choice(config.batch_size)}},
                         epochs=150,
                         verbose=2,
                         callbacks=callbacks_list,
@@ -283,7 +285,10 @@ def build_net(input_shape, parameters):
 
     adam = Adam(lr=parameters['lr'])
     siamese.compile(loss=contrastive_loss, optimizer=adam, metrics=[accuracy])
+
     config.MARGIN = parameters['margin']
+    config.PRED_THRESHOLD = config.AVAILABLE_THRESHOLD[parameters["score_function"].__name__]
+
     siamese.summary()
     return siamese
 
@@ -403,14 +408,31 @@ def fine_tuning(model, batch_size, x_retrain, pseudo_labels):
 
     # fitting the model
     try:
+        tic = time.time()
         h = model.fit([x_train[:, 0], x_train[:, 1]], y_train,
                       batch_size=batch_size,
                       epochs=150,
                       verbose=2,
                       callbacks=callbacks_list,
                       validation_data=([x_val[:, 0], x_val[:, 1]], y_val))
-
+        toc = time.time()
     except:
-        raise
+        print("Error in training")
+        exit(-1)
 
-    return model
+    best_epoch_idx = np.nanargmin(h.history['val_loss'])
+    # the score returned is the best epoch one
+    loss = h.history['loss'][best_epoch_idx]
+    val_loss = h.history['val_loss'][best_epoch_idx]
+    ft_time = toc - tic
+
+    # making preditcion on the validation set
+    val_distances = model.predict([x_val[:, 0], x_val[:, 1]])
+
+    val_thresh = threshold_otsu(val_distances)
+    # converting distances into labels
+    val_prediction = np.where(val_distances.ravel() > val_thresh, config.CHANGED_LABEL, config.UNCHANGED_LABEL)
+    vcm = skm.confusion_matrix(y_val, val_prediction, labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
+    metrics = get_metrics(vcm)
+
+    return model, loss, val_loss, metrics["overall_accuracy"], len(h.history['loss']), ft_time

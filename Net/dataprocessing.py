@@ -1,6 +1,5 @@
 import sklearn.preprocessing as sp
 import numpy as np
-import configparser
 import config
 import scipy.io as sio
 import PIL
