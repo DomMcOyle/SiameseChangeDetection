@@ -103,7 +103,7 @@ def pseudo_labels(first_img, second_img, dist_function, return_distances=False):
 
     :return: a map of pseudo labels (or distances) as a 1-dim array with shape (height x width) and the threshold used
     """
-    
+
     img_a = tf.constant(first_img)
     img_b = tf.constant(second_img)
     distances = dist_function((img_a, img_b)).numpy()

@@ -403,7 +403,6 @@ def SAM(tens):
     dot = kb.minimum(dot, 1)
     return tf.math.acos(dot)
 
-
 def contrastive_loss(y_true, y_pred):
     """
     Function implementing the contrastive loss for the training phase.
