@@ -1,21 +1,39 @@
+# full imports
 import time
+import config
+import configparser
+import pickle
 
+# aliases
 import dataprocessing as dp
 import siamese as s
 import predutils as pu
 import sklearn.metrics as skm
 import numpy as np
-import config
-import configparser
-import pickle
 import matplotlib.pyplot as plt
+
+# single imports
 from skimage.filters import threshold_otsu
 
+"""
+    Main script for training and testing a Siamese Net Model.
+        - If "training"==True in net.conf, the training routine is executed.
+          The unlabeled pairs are automatically removed from the specified training set.
+          The training routine executes "hyperparam_search" on the specified test and training set. 
+          The number of evaluations can be changed, as every other "internal" constant, in config.py
+        - If "training"==False in net.conf, the testing routine is executed.
+          The unlabeled pairs are kept in the specified test set, so that the prediction can be performed on the whole 
+          images. If specified, fine tuning is executed for each image in the test set, before executing the prediction.
+        - This script also saves the .csv file with the result of the testing and the map plots, before and after
+          the spatial correction.
+"""
 
 if __name__ == '__main__':
+    # opening the parser
     parser = configparser.ConfigParser()
     parser.read(config.DATA_CONFIG_PATH)
 
+    # reading the names of train and test set and of the model to be learned/loaded
     train_set = parser["settings"].get("train_set")
     test_set = parser["settings"].get("test_set")
     model_name = parser["settings"].get("model_name")
@@ -24,16 +42,22 @@ if __name__ == '__main__':
     print("Selected test dataset: " + test_set)
     print("Selected model: " + model_name)
 
-    if parser["settings"].get("distance") == "ED":
-        hyperas_sett = "hyperas settings ED"
-        distance_func = s.euclidean_dist
-    elif parser["settings"].get("distance") == "SAM":
-        hyperas_sett = "hyperas settings SAM"
-        distance_func = s.SAM
-    else:
-        raise NotImplementedError("Error: DISTANCE FUNCTION " + parser["settings"].get("distance") + " NOT IMPLEMENTED")
-
+    # TRAINING ROUTINE
     if parser["settings"].getboolean("training") is True:
+
+        # reading the distance function and settings for the learning phase
+        if parser["settings"].get("distance") == "ED":
+
+            hyperas_sett = "hyperas settings ED"
+            distance_func = s.euclidean_dist
+        elif parser["settings"].get("distance") == "SAM":
+
+            hyperas_sett = "hyperas settings SAM"
+            distance_func = s.SAM
+        else:
+            raise NotImplementedError(
+                "Error: DISTANCE FUNCTION " + parser["settings"].get("distance") + " NOT IMPLEMENTED")
+
         # loading the pairs
         train_a_img, train_b_img, train_labels, train_names = dp.load_dataset(train_set, parser)
         test_a_img, test_b_img, test_labels, test_names = dp.load_dataset(test_set, parser)
@@ -46,10 +70,12 @@ if __name__ == '__main__':
                                           keep_unlabeled=True,
                                           apply_rescaling=parser["settings"].getboolean("apply_rescaling"))
 
+        # executing hyperparameters automatic search
         print("Info: STARTING HYPERSEARCH PROCEDURE")
         model, run = s.hyperparam_search(x_train, y_train, x_test, y_test, distance_func, model_name,
                                          parser[hyperas_sett])
 
+    # TESTING ROUTINE
     else:
         # declaring placeholder to be printed when no fine tuning is executed
         pseudo_qty = "no fine tuning"
@@ -62,16 +88,13 @@ if __name__ == '__main__':
         pseudo_accuracy = "-"
         pseudo_accuracy_corr = "-"
 
-        percentage = float(parser["settings"].get("pseudo_percentage"))
-        radius = int(parser["settings"].get("pseudo_radius"))
-
-        # dataset and model loading
+        # dataset loading
         first_img, second_img, labels, names = dp.load_dataset(test_set, parser)
         x_test, y_test = dp.preprocessing(first_img, second_img, labels, parser[test_set],
                                           keep_unlabeled=True,
                                           apply_rescaling=parser["settings"].getboolean("apply_rescaling"))
 
-        # parameters loading
+        # parameters loading and model building
         print("Info: LOADING THE MODEL...")
         param_file = open(config.MODEL_SAVE_PATH + model_name + "_param.pickle", "rb")
         parameters = pickle.load(param_file)
@@ -82,12 +105,13 @@ if __name__ == '__main__':
         # The model will be tuned fresh for each image
         # and each image must be extracted from the preprocessed matrix
         for lab in labels:
-            model.load_weights(config.MODEL_SAVE_PATH + model_name + ".h5")
             pairs = x_test[i:i+lab.size, :]
             img_label = y_test[i:i+lab.size]
 
+            # weights loading
+            model.load_weights(config.MODEL_SAVE_PATH + model_name + ".h5")
+
             # Fine tuning phase
-            # loading the dictionary containing distances and the threshold
             if int(parser["settings"].get("fine_tuning")) >= 0:
                 # loading the dictionary containing distances, threshold and shape
                 pseudo_file = open(parser[test_set].get("pseudoPath") + "/" + names[i] + ".pickle", "rb")
@@ -100,21 +124,25 @@ if __name__ == '__main__':
                 pseudo_truth = pu.spatial_correction(np.reshape(pseudo_truth, pseudo_dict["shape"])).ravel()
 
                 if int(parser["settings"].get("fine_tuning")) == 0:
+                    # selecting all the pseudo-labels
 
                     pseudo_qty = "all"
                     toc_extraction = 0
                     tic_extraction = 0
                     best_data = np.arange(0, len(pseudo_dict["distances"]))
                     pseudo = pseudo_truth
-
                 elif int(parser["settings"].get("fine_tuning")) == 1:
+                    # selecting the "percentage"*100% best pseudo-labels
 
+                    percentage = float(parser["settings"].get("pseudo_percentage"))
                     pseudo_qty = str(percentage*100)+"%"
                     tic_extraction = time.time()
                     best_data, pseudo = pu.labels_by_percentage(pseudo_dict, percentage)
                     toc_extraction = time.time()
                 elif int(parser["settings"].get("fine_tuning")) == 2:
+                    # selecting the best pseudo-labels by neighbourhood with "radius" radius
 
+                    radius = int(parser["settings"].get("pseudo_radius"))
                     pseudo_qty = "r=" + str(radius)
                     tic_extraction = time.time()
                     best_data, pseudo = pu.labels_by_neighborhood(pseudo_dict, radius)
@@ -123,13 +151,16 @@ if __name__ == '__main__':
                     raise ValueError("Error: FINE TUNING CHOICE " + parser["settings"].get("fine_tuning")
                                      + " NOT IMPLEMENTED")
 
+                # computing the extraction time of the pseudo-labels
                 extraction_time = toc_extraction - tic_extraction
+
+                # performing fine tuning
                 print("Info: PERFORMING FINE TUNING...")
                 model, loss, val_loss, val_acc, epochs, fine_time = s.fine_tuning(model,
                                                                                   parameters['batch_size'],
                                                                                   pairs[best_data], pseudo)
 
-            # prediction
+            # performing prediction and computing the elapsed time
             print("Info: EXECUTING PREDICTION OF " + names[i] + " " + str(i+1) + "/" + str(len(labels)))
             tic_prediction = time.time()
             distances = model.predict([pairs[:, 0], pairs[:, 1]])
@@ -154,27 +185,33 @@ if __name__ == '__main__':
             # 2. getting the metrics
             metrics = s.get_metrics(cm)
 
+            # 3. Opening a new file
             print("Info: SAVING THE " + str(i+1) + "° RESULT")
             file = open(config.STAT_PATH + test_set + "_" + names[i] + "_on_" + model_name + "_" + pseudo_qty
                         + ".csv", "w")
 
-            # 3. printing column names
+            # 4. printing column names, number of examples and the used threshold
             file.write("total_examples, threshold")
+
             for k in metrics.keys():
                 file.write(", " + k)
+
             file.write(", prediction_time")
+
             for k in metrics.keys():
                 file.write(", " + k + "_correction")
+
             file.write(", correction_time, pseudo_qty, extraction_time," +
                        " ft_epochs, ft_time, ft_loss, ft_val_loss, ft_val_acc, pseudo_acc, pseudo_acc_corrected")
+
             file.write("\n %d, %f" % (len(img_label), threshold))
 
-            # 4. printing metrics
+            # 5. printing metrics without correction
             for k in metrics.keys():
                 file.write(", " + str(metrics[k]))
             file.write(", " + str(prediction_time))
 
-            # 5. saving the map plot
+            # 6. saving the map plot
             # a. the prediction is reshaped as a 2-dim array
             lmap = np.reshape(prediction, lab.shape)
             # b. label is refactored singularly in order to provide coherent ground truth
@@ -185,7 +222,8 @@ if __name__ == '__main__':
                         + ".png", dpi=300, bbox_inches='tight')
 
             print("Info: EXECUTING SPATIAL CORRECTION...")
-            # replying steps 1, 2, 4 and 5 after the spacial correction
+            # replying steps 1, 2, 3, 5 and 6 after the spatial correction
+            # the elapsed time during correction is also recorded
             tic_correction = time.time()
             corrected_map = pu.spatial_correction(lmap)
             toc_correction = time.time()
@@ -197,7 +235,7 @@ if __name__ == '__main__':
 
             scmetrics = s.get_metrics(sccm)
 
-            # if fine tuning is enabled, accuracy with respect to the pseudo labels is computed
+            # if fine tuning is enabled, accuracy with respect to the pseudo labels is computed and printed on file
             if int(parser["settings"].get("fine_tuning")) >= 0:
                 pseudocm = skm.confusion_matrix(pseudo_truth, prediction,
                                                 labels=[config.CHANGED_LABEL, config.UNCHANGED_LABEL])
