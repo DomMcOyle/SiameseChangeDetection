@@ -32,7 +32,7 @@ if __name__ == '__main__':
     for image_name in os.listdir(parser[dataset].get("pseudoPath")):
         # loading the pseudo-labels dictionary for each image
         print("Info: GENERATING " + os.path.splitext(image_name)[0] + " MAP...")
-        pseudo = open(parser[dataset].get("pseudoPath") + "/" + image_name, "rb")
+        pseudo = open(parser[dataset].get("pseudoPath") + os.sep + image_name, "rb")
         dict = pickle.load(pseudo)
         pseudo.close()
 

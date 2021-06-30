@@ -1,6 +1,6 @@
 # imports
 from numpy import pi
-
+from os import sep
 
 """
     Paths --------------------------------------------------------------------------------------------------------------
@@ -9,10 +9,10 @@ from numpy import pi
 DATA_CONFIG_PATH = "net.conf"
 
 # Path where the model are saved or stored
-MODEL_SAVE_PATH = "model/"
+MODEL_SAVE_PATH = "model" + sep
 
 # Path where the file containing stats are saved
-STAT_PATH = "stat/"
+STAT_PATH = "stat" + sep
 
 
 """
@@ -45,7 +45,7 @@ MARGIN = 1
 VAL_SPLIT = 0.2
 
 # Constant containing the number of evaluations to be performed during hyperparameter optimization
-MAX_EVALS = 30
+MAX_EVALS = 20
 
 # List containing the color map to be used in the prediction/pseudo-labels/ground truth plots
 # the colors are assigned in ascending order

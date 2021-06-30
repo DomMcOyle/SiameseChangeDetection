@@ -84,6 +84,7 @@ def hyperparam_search(train_set, train_labels, test_set, test_labels, distance_f
 
     bs = config.batch_size
 
+
     # optimization function
     print("Info: BEGINNING SEARCH...")
     best_run, best_model = optim.minimize(model=siamese_model,
@@ -402,6 +403,7 @@ def SAM(tens):
     dot = kb.maximum(dot, -1)
     dot = kb.minimum(dot, 1)
     return tf.math.acos(dot)
+
 
 def contrastive_loss(y_true, y_pred):
     """

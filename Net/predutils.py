@@ -11,7 +11,7 @@ import matplotlib.colors as pltc
 import numpy as np
 from collections import Counter
 from skimage.filters import threshold_otsu
-
+from os import sep
 
 # main imports
 # full imports
@@ -261,7 +261,7 @@ if __name__ == '__main__':
 
         # dumping values in a file
         print("Info: SAVING DISTANCES OF " + names[i] + " " + str(i+1) + "/" + str(len(labels)))
-        dist_file = open(parser[dataset].get("pseudoPath") + "/" + names[i] + ".pickle", "wb")
+        dist_file = open(parser[dataset].get("pseudoPath") + sep + names[i] + ".pickle", "wb")
         pickle.dump({'threshold': thresh, 'distances': dist, 'shape': lab.shape}, dist_file, pickle.HIGHEST_PROTOCOL)
         dist_file.close()
 

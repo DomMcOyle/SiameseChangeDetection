@@ -3,7 +3,7 @@ import time
 import config
 import configparser
 import pickle
-
+import os
 # aliases
 import dataprocessing as dp
 import siamese as s
@@ -114,7 +114,7 @@ if __name__ == '__main__':
             # Fine tuning phase
             if int(parser["settings"].get("fine_tuning")) >= 0:
                 # loading the dictionary containing distances, threshold and shape
-                pseudo_file = open(parser[test_set].get("pseudoPath") + "/" + names[i] + ".pickle", "rb")
+                pseudo_file = open(parser[test_set].get("pseudoPath") + os.sep + names[i] + ".pickle", "rb")
                 pseudo_dict = pickle.load(pseudo_file)
                 pseudo_file.close()
 

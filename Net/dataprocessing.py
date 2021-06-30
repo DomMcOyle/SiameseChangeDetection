@@ -67,9 +67,10 @@ def refactor_labels(labels, conf_section):
         uc_indexes = np.where(labels == int(conf_section.get("unchangedLabel")))
         uc_set = True
 
-    if int(conf_section.get("unknownLabel")) != config.UNKNOWN_LABEL:
-        un_indexes = np.where(labels == int(conf_section.get("unknownLabel")))
-        un_set = True
+    if conf_section.get("unknownLabel") is not None:
+        if int(conf_section.get("unknownLabel")) != config.UNKNOWN_LABEL:
+            un_indexes = np.where(labels == int(conf_section.get("unknownLabel")))
+            un_set = True
 
     if c_set:
         labels[c_indexes] = config.CHANGED_LABEL
@@ -162,10 +163,26 @@ def load_image(path, conf_section):
     :return: a 3-dim array containing the hyper- or multi-spectral image.
     """
     if ".mat" in path:
+
         return read_mat(path, conf_section.get("matLabel"))
-    else:
-        raise NotImplementedError("Error: CANNOT LOAD NON-MAT FILES")
-        #TODO: implementare la compressione dei .tif
+    elif os.path.isdir(path):
+        if ".tif" in os.listdir(path)[0]:
+
+            return read_decompressed_tif(path)
+
+    raise NotImplementedError("Error: CANNOT LOAD NON-MAT FILES")
+
+
+def read_decompressed_tif(path):
+    files = os.listdir(path)
+    files.sort()
+    image_cube = None
+    for band in files:
+        im = PIL.Image.open(path + os.sep + band)
+        if image_cube is None:
+            image_cube = np.empty((im.size[1], im.size[0], 0))
+        image_cube = np.append(image_cube, np.array(im).reshape((im.size[1], im.size[0], 1)), axis=2)
+    return image_cube
 
 
 def load_label(path, conf_section):
@@ -180,12 +197,10 @@ def load_label(path, conf_section):
     if ".mat" in path:
 
         return read_mat(path, conf_section.get("matLabel"))
-    elif ".png" or ".tif" in path:
-        #TODO: eseguire controllo e compressione dei png a monocanale
-        return PIL.Image.open(path)
+    if ".tif" in path:
 
-    else:
-        raise NotImplementedError("Error: CANNOT LOAD LABEL FILE FORMAT")
+        return np.array(PIL.Image.open(path))
+    raise NotImplementedError("Error: CANNOT LOAD LABEL FILE FORMAT")
 
 
 def preprocessing(limgA, limgB, llabel, conf_section, keep_unlabeled, apply_rescaling=True):
