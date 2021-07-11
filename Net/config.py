@@ -45,7 +45,7 @@ MARGIN = 1
 VAL_SPLIT = 0.2
 
 # Constant containing the number of evaluations to be performed during hyperparameter optimization
-MAX_EVALS = 20
+MAX_EVALS = 30
 
 # List containing the color map to be used in the prediction/pseudo-labels/ground truth plots
 # the colors are assigned in ascending order

@@ -173,7 +173,7 @@ if __name__ == '__main__':
                                   config.CHANGED_LABEL, config.UNCHANGED_LABEL)
 
             print("Info: COMPUTING THE METRICS...")
-            # print the heatmap
+            # print the heatmap0
             im = plt.imshow(distances.reshape(lab.shape), cmap='hot', interpolation='nearest')
             plt.colorbar()
             plt.savefig(config.STAT_PATH + test_set + "_" + names[i] + "_on_" + model_name + "_" + pseudo_qty

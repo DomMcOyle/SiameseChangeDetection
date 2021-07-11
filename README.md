@@ -10,6 +10,8 @@ il dataset utilizzato è reperibile al seguente link: https://cutt.ly/NbDeLgT
         ├── Net       	            # contiene i vari file con i dati necessari alla computazione (file .txt, .csv, .py)
         │    ├ data         		# locazione dei dataset da utilizzare
         │    │  ├ bayarea/pseudo    # contiene le pseudo-etichette selezionate per la coppia "Bay Area"
+        │    │  ├ oneratest/pseudo  # contiene le pseudo-etichette selezionate per le coppie del dataset Onera (test)
+        │    │  ├ oneratrain/pseudo # contiene le pseudo-etichette selezionate per le coppie del dataset Onera (train)
         │    │  └ barbara/pseudo    # contiene le pseudo-etichette selezionate per la coppia "Santa Barbara"
         │    ├ model                # locazione per il salvataggio e il caricamento dei modelli appresi
         │    │   └ model.old 		# contiene tutti i modelli ricavati
@@ -37,7 +39,7 @@ Ciascun modello appreso viene salvato in due tipi di file:
     nomemodello_param.pickle    # file contenente un dizionario serializzato con le informazioni utili 
                                   alla costruzione dell'architettura di rete
 
-Generalmente il nome dei modelli è stato ottenuto associando le iniziali del dataset ("BA" o "SB") alla sigla della distanza ("ED" o "SAM")
+Generalmente il nome dei modelli è stato ottenuto associando le iniziali del dataset ("BA", "SB", "OTR", "OTE") alla sigla della distanza ("ED" o "SAM")
 più ulteriori sottostringhe per indicarne alcune caratteristiche.
 Il dizionario associato ad ogni modello ha i seguenti campi:
 
@@ -167,7 +169,7 @@ la fase di addestramento o predizione, il codice contenuto in predutils.py per g
 
 ### Addestramento di un modello
 
-Impostare il valore *training=True*, i valori di *train_set* e *test_set* con i nomi dei rispettivi dataset che si intende utilizzare (attualmente sono implementati *"BAY AREA"* e *"SANTA BARBARA"*), il valore di *distance* che indichi la funzione di distanza selezionata (tra "*ED*" e "*SAM*"), il valore *model_name=modello_scelto* e il valore di *apply_rescaling* a *True* (consigliato) o *False*. 
+Impostare il valore *training=True*, i valori di *train_set* e *test_set* con i nomi dei rispettivi dataset che si intende utilizzare (attualmente sono implementati *"BAY AREA"*, *"SANTA BARBARA"*, *"ONERA TRAIN"* e *"ONERA TEST"*), il valore di *distance* che indichi la funzione di distanza selezionata (tra "*ED*" e "*SAM*"), il valore *model_name=modello_scelto* e il valore di *apply_rescaling* a *True* (consigliato) o *False*. 
 Modificare, inoltre, se lo si ritiene opportuno i valori delle sezioni *hyperas settings SAM/ED*.
 Dopodichè è possibile lanciare main.py senza altri argomenti
 

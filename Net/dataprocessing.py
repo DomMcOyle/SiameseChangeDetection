@@ -174,6 +174,16 @@ def load_image(path, conf_section):
 
 
 def read_decompressed_tif(path):
+    """
+    Function returning an image read from the directory "path".
+    since the .tif can be read as a 2-dim array, the image is "decompressed" and stored as n files, each
+    one containing the values of a spectral band. In order to work correctly, the
+    files must be named in the same alpha-numerical order as the bands are meant to be.
+
+    :param path: string containing the path of the directory where the layers are stored
+
+    :return: a 3-dim numpy array containing the image in pixel-vector format
+    """
     files = os.listdir(path)
     files.sort()
     image_cube = None

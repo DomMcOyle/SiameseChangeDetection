@@ -40,7 +40,7 @@ if __name__ == '__main__':
             # extracting the labels
             print("Info: RADIUS " + str(i) + "/" + str(radius_max))
             best_data, labels = labels_by_neighborhood(dict, radius=i)
-
+            print(len(best_data))
             # generating the three maps to be plotted
             nmap = np.full(dict["shape"][0]*dict["shape"][1], fill_value=2)
             cmap = np.full(dict["shape"][0]*dict["shape"][1], fill_value=2)
