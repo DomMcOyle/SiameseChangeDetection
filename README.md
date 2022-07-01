@@ -2,7 +2,7 @@
 
 Repository per il progetto di tesi "Sintesi di un approccio basato su Reti Siamesi per la scoperta del cambiamento in immagini iperspettrali co-registrate", A.A. 2020/2021.
 
-il dataset utilizzato è reperibile al seguente link: https://cutt.ly/NbDeLgT
+il dataset utilizzato è reperibile al seguente link: shorturl.at/ahprH
 ## Struttura del repository
 
     
