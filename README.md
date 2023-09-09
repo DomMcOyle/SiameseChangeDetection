@@ -1,109 +1,110 @@
-# Change Detection con rete Siamese e Transfer Learning
+# Change Detection with Siamese Network and Transfer Learning
 
 Repository per il progetto di tesi "Sintesi di un approccio basato su Reti Siamesi per la scoperta del cambiamento in immagini iperspettrali co-registrate", A.A. 2020/2021.
+Repository for the paper "Siamese networks with transfer learning for change detection in sentinel-2 images" 
+(G. Andresini, A. Appice, D. Dell’Olio, D. Malerba, In Proceedings of the International Conference of the Italian Association for Artificial Intelligence, Virtual Event, 1–3 December 2021; Springer: Berlin/Heidelberg, Germany, 2022; pp. 478–489)
 
-il dataset utilizzato è reperibile al seguente link: shorturl.at/gtKO1
-## Struttura del repository
+The dataset used is available at: shorturl.at/gtKO1
+## Repository structure
 
     
         .
-        ├── Net       	            # contiene i vari file con i dati necessari alla computazione (file .txt, .csv, .py)
-        │    ├ data         		# locazione dei dataset da utilizzare
-        │    │  ├ bayarea/pseudo    # contiene le pseudo-etichette selezionate per la coppia "Bay Area"
-        │    │  ├ oneratest/pseudo  # contiene le pseudo-etichette selezionate per le coppie del dataset Onera (test)
-        │    │  ├ oneratrain/pseudo # contiene le pseudo-etichette selezionate per le coppie del dataset Onera (train)
-        │    │  └ barbara/pseudo    # contiene le pseudo-etichette selezionate per la coppia "Santa Barbara"
-        │    ├ model                # locazione per il salvataggio e il caricamento dei modelli appresi
-        │    │   └ model.old 		# contiene tutti i modelli ricavati
-        │    ├ stat           		# locazione per il salvataggio delle metriche e statistiche ricavate durante la sperimentazione
-        │    │  └ stat.old          # contiene tutti i file .csv e le mappe .png dei modelli
-        │    ├ config.py            # file contenente le costanti "interne" per l'esecuzione degli script
-        │    ├ contenuti.txt        # file di testo che dettaglia i contenuti delle cartelle stat, model e data     
-        │    ├ dataprocessing.py    # file contenente le funzioni di caricamento e processing del dataset
-        │    ├ labelbyneigh_generation.py # script per la generazione delle mappe di pseudolabel per vicinato
-        │    ├ labelbyperc_generation.py  # script per la generazione delle mappe di pseudolabel per percentuale
-        │    ├ main.py              # file contenente lo script principale per il programma
-        │    ├ net.conf             # file di configurazione per i vari dataset e per gli algoritmi implementati
-        │    ├ predutils.py         # file contenente funzioni di supporto alla predizione
-        │    ├ requirements.txt     # file contenente la lista delle dependencies necessarie
-        │    └ siamese.py           # file contenente le funzioni per il training e il fine tuning delle reti
-        ├── res         		    # contiene una descrizione del dataset onera (non utilizzato), alcune statistiche degli esperimenti raccolte e risorse varie
+        ├── Net       	            # contains the files for the computation (files .txt, .csv, .py)
+        │    ├ data         		# dataset location
+        │    │  ├ bayarea/pseudo    # contains the selected pseudo-labels for the pair "Bay Area"
+        │    │  ├ oneratest/pseudo  # contains the selected pseudo-labels for the Onera dataset pairs (test)
+        │    │  ├ oneratrain/pseudo # contains the selected pseudo-labels for the Onera dataset pairs (train)
+        │    │  └ barbara/pseudo    # contains the selected pseudo-labels for the pair "Santa Barbara"
+        │    ├ model                # model saving and loading location
+        │    │   └ model.old 		# contains the models produced for the paper
+        │    ├ stat           		# metrics and statistics saving location
+        │    │  └ stat.old          # contains models .csv and .png maps
+        │    ├ config.py            # contains 'internal' constants for the processing
+        │    ├ contents.txt         # text file detailing the contents of the folders stat, model and data     
+        │    ├ dataprocessing.py    # contains dataset loading and pre-processing functions
+        │    ├ labelbyneigh_generation.py # proximity pseudo-labels maps generation script
+        │    ├ labelbyperc_generation.py  # percentage pseudo-labels maps generation script
+        │    ├ main.py              # contains main training and testing script
+        │    ├ net.conf             # config file for the different combinations of datasets and algorithms
+        │    ├ predutils.py         # contains prediction support functions
+        │    ├ requirements.txt     # contains dependencies requirements
+        │    └ siamese.py           # contains training and fine-tuning function definitions
+        ├── res         		    # contains a description of the onera dataset (unused), some experiment's stats and various resources
         └── README.md
 
-Sia i modelli che i file contenenti metriche e statistiche in model.old e stat.old sono suddivisi in un sistema di sottocartelle, ciascuna indicante un tipo di esperimento.
+Both models and statistics files in model.old and stat.old are split in subfolder system. Each folder refers to an experiment.
 
-### Modelli
-Ciascun modello appreso viene salvato in due tipi di file:
+### Models
+Each trained model is saved in two types of files:
 
-    nomemodello.h5              # file contenente i pesi appresi durante la fase di training
-    nomemodello_param.pickle    # file contenente un dizionario serializzato con le informazioni utili 
-                                  alla costruzione dell'architettura di rete
+    modelname.h5              # contains the weight learned during training
+    modelname_param.pickle    # contains a serialized dictionary with the useful info to build the net architecture
 
-Generalmente il nome dei modelli è stato ottenuto associando le iniziali del dataset ("BA", "SB", "OTR", "OTE") alla sigla della distanza ("ED" o "SAM")
-più ulteriori sottostringhe per indicarne alcune caratteristiche.
-Il dizionario associato ad ogni modello ha i seguenti campi:
+Generally, the name of the models was obtained by associating the initials of the dataset ("BA," "SB," "OTR," "OTE") with the distance abbreviation ("ED" or "SAM")
+plus additional substrings to indicate certain characteristics.
+The dictionary associated with each model has the following fields:
 
-    'dropout_rate': float - rateo di "spegnimento" per il primo livello di dropout
-    'dropout_rate_1': float - rateo di "spegnimento" per il secondo livello di dropout
+    'dropout_rate': float - dropout rate for the first dropout layer
+    'dropout_rate_1': float - dropout rate for the second dropout layer
     'lr': float - learning rate
-    'layer': int - numero di neuroni del primo layer denso
-    'layer_1': int - numero di neuroni del primo layer denso
-    'layer_2': int - numero di neuroni del primo layer denso
-    'score_function': function - funzione di distanza selezionata per la rete
-    'margin': float - margine da utilizzare per la funzione di loss contrastiva
-    'fourth_layer': boolean - indica se aggiungere un quarto layer con 512 neuroni attivazione sigmoidale 
-	'batch_size': int - batch size utilizzata per l'apprendimento
+    'layer': int - neuron number for the first dense layer
+    'layer_1': int - neuron number for the second dense layer
+    'layer_2': int - neuron number for the third dense layer
+    'score_function': function - distance function selected for the net
+    'margin': float - margin for the contrastive loss
+    'fourth_layer': boolean - indicates whether to add a fourth 512-neurons layer with sigmoid activation 
+	'batch_size': int - training batch size
 
-NB: tutti gli esperimenti precedenti a quelli dell'utilizzo della soglia Otsu hanno un dizionario dei parametri non aggiornato. 
-    Per utilizzarli è necessario rieseguire il training oppure modificarli manualmente.
-### Pseudo-etichette
-Ciascun file di pseudo-etichette ricavato viene salvato come file .pickle contenente un dizionario serializzato, contenente i seguenti campi:
+NB: All experiments prior to using the Otsu threshold have an outdated parameter dictionary. 
+    To use them, it is necessary to rerun the training or change them manually.
+### Pseudo-labels
+Each derived pseudo-label file is saved as a .pickle file containing a serialized dictionary, containing the following fields:
 
-    'threshold': float - valore di soglia da utilizzare per convertire le distanze in pseudo-etichette
-    'distances': array monodimensionale di float - mappa linearizzata delle distanze calcolate 
-    'shape': tupla bidimensionale di int - dimensione originale della coppia di immagini
-Con i campi restituiti è possibile quindi ricostruire in un secondo momento la mappa delle pseudo-etichette dopo aver ricaricato il file. Quest'ultimo deve avere lo stesso nome della coppia di immagini a cui fa riferimento.
+    'threshold': float - threshold value to be used to convert distances to pseudo-labels
+    'distances': 1d array of floats - vinearized map of calculated distances 
+    'shape': 2d tuple of ints - original size of the image pair
+With the returned values, it is then possible to reconstruct the pseudo-label map at a later time after reloading the file. The latter must have the same name as the image pair it refers to.
 
-### Valutazione
+### Evaluation
 
-Per ogni sperimentazione, sulla base dei dati raccolti, sono stati stipulati i seguenti file:
+The following files were produced for each trial based on the data collected:
 
-    nomemodello_stats.csv
-    # report contenente metriche e informazioni sull'apprendimento con l'ottimizzazione degli iperparametri (trials di hyperas)
+    modelname_stats.csv
+    # report containing metrics and learning information with hyperparameter optimization (hyperas trials)
     
-    dataset[_immagine]_on_nomemodello_[0.x/r=y/no fine tuning/all].csv
-    # report contenente metriche sul test del dataset "dataset" sul modello "nomemodello" eventualmente senza (no fine tuning) 
-    # o con fine tuning con tutte le pseudo-etichette (all), una percentuale (x%) o estratte per vicinato (raggio y)
+    dataset[_image]_on_modelname_[0.x/r=y/no fine tuning/all].csv
+    # report containing metrics on testing "dataset" on model "modelname" possibly without (no fine tuning) 
+    # or with fine tuning with all pseudo-labels (all), a percentage (x%) or extracted by neighborhood (radius y)
 
-    dataset[_immagine]_on_nomemodello_[0.x/r=y/no fine tuning/all].png
-    # immagine contenente la mappa del cambiamento inferita, la stessa con i pixel etichettati in evidenza e la ground truth.
+    dataset[_image]_on_modelname_[0.x/r=y/no fine tuning/all].png
+    # image containing the inferred change map, the same with the labeled pixels highlighted and the ground truth.
 
-    dataset[_immagine]_on_nomemodello_[0.x/r=y/no fine tuning/all]_corrected.png
-    # come la precedente, ma con la correzione spaziale applicata
+    dataset[_image]_on_modelname_[0.x/r=y/no fine tuning/all]_corrected.png
+    # like the previous one, but with spatial correction applied
 
-    dataset[_immagine]_on_nomemodello_[0.x/r=y/no fine tuning/all]_heatmap.png
-    # mappa di calore sulle distanze inferite con la rete
+    dataset[_image]_on_modelname_[0.x/r=y/no fine tuning/all]_heatmap.png
+    # Heat map of distances inferred with the network
 
-Inoltre, sono anche presenti file riguardanti la generazione delle pseudo-etichette:
+In addition, there are also files concerning the generation of pseudo-labels:
 
-    dataset_nomeimmagine_[ED/SAM]_pseudo_rescaling_[True/False].csv
-    # report contenente le metriche sulle pseudoetichette dell'immagine "nomeimmagine" in dataset con la distanza indicata e l'eventuale rescaling
+    dataset_imagename_[ED/SAM]_pseudo_rescaling_[True/False].csv
+    # report containing metrics on the pseudo-labels of the "imagename" image in "dataset" with the indicated distance and possible rescaling
     
-    dataset_nomeimmagine_[ED/SAM]_pseudo_rescaling_[True/False].png
-    # immagine contenente la pseudo-mappa del cambiamento, la stessa con i pixel etichettati in evidenza e la ground truth.
+    dataset_imagename_[ED/SAM]_pseudo_rescaling_[True/False].png
+    # image containing the change pseudo-map, the same with the labeled pixels highlighted and the ground truth.
     
-    dataset_nomeimmagine_[ED/SAM]_pseudo_rescaling_[True/False]_corrected.csv
-    # come la precedente, ma con la correzione spaziale applicata
+    dataset_imagename_[ED/SAM]_pseudo_rescaling_[True/False]_corrected.csv
+    # like the previous one, but with spatial correction applied
 
-    dataset_nomeimmagine_x%.png
-    # mappe contenenti l'x% relativo delle pseudo-etichette cambiamento e non cambiamento sia su mappe singole che su una combinata
+    dataset_imagename_x%.png
+    # maps containing the relative x% of change and non-change pseudo-labels on both single maps and a combined one
 
-    dataset_nomeimmagine_radiusy.png
-    # mappe contenenti le pseudo-etichette cambiamento e non cambiamento sia su mappe singole che su una combinata, estratte per vicinato con raggio y
+    dataset_imagename_radiusy.png
+    # maps containing change and non-change pseudo-labels on both single maps and a combined one, extracted by neighborhood with radius y
 
     
 
-## Installazione
+## Install
 
     pip install -r requirements.txt
 
@@ -124,154 +125,153 @@ Packages:
 
 
 
-## Utilizzo
+## Usage
 
-Per configurare l'esecuzione dell'algoritmo è necessario impostare i parametri dell'area *settings* di net.conf. Qui di seguito si indica il significato dei vari campi: 
+To configure the execution of the algorithm, it is necessary to set the parameters in the *settings* area of net.conf. The meaning of the various fields is given below: 
 
     [setting]
-    train_set         # nome del dataset per il training. Tale nome deve averlo anche la sezione con le informazioni riguardo ad esso
-    test_set          # nome del dataset per il training. Tale nome deve averlo anche la sezione con le informazioni riguardo ad esso
-    distance          # ED=> utilizzo della distanza euclidea, SAM => utilizzo della distanza SAM. 
-    model_name        # nome del modello da salvare/caricare
-    apply_rescaling   # True=>applica rescaling minmax ai dati  False=> Non applica il rescaling ai dati
-    training          # True => Avvia la procedura di apprendimento della rete False=> Avvia la procedura di testing
-    fine_tuning       # -1=>non applica ft 0=>ft con tutte le pseudo 1=>ft con selezione per percentuale 2=>ft con selezione per vicinato 
-    pseudo_percentage # valore in [0,1] indica la percentuale di pseudo-etichette da estrarre
-    pseudo_radius     # intero positivo, indica il raggio entro il quale considerare il vicinato per l'estrazione delle etichette
+    train_set         # training dataset name. Said name must be given also to the section with information about it
+    test_set          # test dataset name. Said name must be given also to the section with information about it
+    distance          # ED=> use euclidean distance, SAM => use SAM. 
+    model_name        # name of the model to be saved/loaded
+    apply_rescaling   # True=>applies minmax rescaling to data,  False=> Does not apply rescaling
+    training          # True => Runs main.py in training mode, False=> runs main.py in testing mode
+    fine_tuning       # -1=>doesn't applies fine tuning 0=> applies ft with all the pseudo 1=> applies ft with percentual selection 2=>applies ft with neighborhood selection 
+    pseudo_percentage # value in [0,1]. Indicates the pseudo-labels percentage to be used
+    pseudo_radius     # positive integer. Indicates the radius for the neighborhood extraction of pseudo-labels
 
-Oltre alla configurazione dei valori per l'esecuzione, è necessario anche inserire le informazioni relative al dataset che si intende utilizzare:
+In addition to configuring values for execution, you must also enter information about the dataset you intend to use:
 
     [nome_dataset]
-    imgAPath          # path in cui inserire le immagini cronologicamente precendenti
-    imgAPath          # path in cui inserire le seconde immagini cronologicamente successive
-    labelPath         # path in cui inserire le etichette per le coppie di immaigni
-    pseudoPath        # path in cui vegnono salvate/caricate le pseudo-etichette per il fine tuning
-    matLabel          # nome dell'etichetta del campo contenente i dati (solo per file .mat)
-    changedLabel      # etichetta che nella ground truth indica una coppia cambiata
-    unchangedLabel    # etichetta che nella ground truth indica una coppia non cambiata
-    unknownLabel      # etichetta che nella ground truth indica una coppia ignota
+    imgAPath          # path for the 'before' images
+    imgBPath          # path for the 'after' images
+    labelPath         # path for the image pair labels
+    pseudoPath        # path where pseudo-labels for fine tuning are saved/loaded
+    matLabel          # name of the field containing the data (only .mat files)
+    changedLabel      # ground truth label indicating a changed pixel pair
+    unchangedLabel    # ground truth label indicating a unchanged pixel pair
+    unknownLabel      # ground truth label indicating an unknown pixel pair
 
-NB: i dataset devono essere organizzati in modo che la quadrupla (immagine "prima", immagine "dopo", etichette, pseudo etichette)
-siano quattro file (o cartelle con le immagini da comporre) con lo stesso nome nei path indicati dalla sovracitata sezione.
+NB: the datasets should be organized so that the quadruple ("before" image, "after" image, labels, pseudo labels)
+are four files (or folders with the images to be composed) with the same name in the paths indicated by the above section.
 
-Inoltre, è anche possibile cambiare alcuni parametri dell'algoritmo di ricerca automatica Hyperas in base alla funzione distanza:
+In addition, it is also possible to change some parameters of the Hyperas automatic search algorithm according to the distance function:
 
-    [hyperas settings sigla_distanza]
-    batch_size      # lista (scritta in sintassi python) dei possibili valori di batch size utilizzabili
-    max_dropout     # float in ]0,1[ che indica il limite superiore dell'intervallo in cui scegliere il dropout rate
-    neurons         # lista (scritta in sintassi python) dei possibili numeri di neuroni assegnabili al primo livello
-    neurons_1       # lista (scritta in sintassi python) dei possibili numeri di neuroni assegnabili al secondo livello
-    neurons_2       # lista (scritta in sintassi python) dei possibili numeri di neuroni assegnabili al terzo livello
-    fourth_layer    # True=>aggiunta del quarto livello a 512 neuroni False=>tale livello non viene aggiunto
+    [hyperas settings distance_abbreviation]
+    batch_size      # list (python syntax) of possible batch size values
+    max_dropout     # float in ]0,1[ indicating the upper bound of the values that can be chosen for the dropouts
+    neurons         # list (python syntax) of possible neuron number to be assigned at the first layer
+    neurons_1       # list (python syntax) of possible neuron number to be assigned at the second layer
+    neurons_2       # list (python syntax) of possible neuron number to be assigned at the third layer
+    fourth_layer    # True=> adds the fourth 512 neuron layer False=>fourth layer isn't added
 
-Una volta impostati tutti i valori necessari all'interno del file di configurazione, è possibile avviare il codice contenuto in main.py per avviare
-la fase di addestramento o predizione, il codice contenuto in predutils.py per generare le pseudo-etichette o i "labelby" per la generazione delle mappe.
+Once you have set all the necessary values within the configuration file, you can start the code contained in main.py to initiate
+the training or prediction phase, the code contained in predutils.py to generate the pseudo-labels or the "labelby"s for map generation.
 
-### Addestramento di un modello
+### Model training
 
-Impostare il valore *training=True*, i valori di *train_set* e *test_set* con i nomi dei rispettivi dataset che si intende utilizzare (attualmente sono implementati *"BAY AREA"*, *"SANTA BARBARA"*, *"ONERA TRAIN"* e *"ONERA TEST"*), il valore di *distance* che indichi la funzione di distanza selezionata (tra "*ED*" e "*SAM*"), il valore *model_name=modello_scelto* e il valore di *apply_rescaling* a *True* (consigliato) o *False*. 
-Modificare, inoltre, se lo si ritiene opportuno i valori delle sezioni *hyperas settings SAM/ED*.
-Dopodichè è possibile lanciare main.py senza altri argomenti
+Set the value *training=True*, the values of *train_set* and *test_set* with the names of the respective datasets you intend to use (currently implemented are *"BAY AREA "*, *"SANTA BARBARA "*, *"ONERA TRAIN "* and *"ONERA TEST "*), the value of *distance* indicating the selected distance function (between "*ED*" and "*SAM*"), the value of *model_name=chosen_model* and the value of *apply_rescaling* to *True* (recommended) or *False*. 
+Also, change the values of the *hyperas settings SAM/ED* sections as appropriate.
+After that you can run main.py without any other arguments
 
     python3 main.py
 
-In questo modo verrà eseguito il caricamento e il pre-processing del dataset, l'apprendimento e della rete sui set indicati con l'ottimizzazione degli iperparametri e successivo test. In particolare, verranno ottimizzati il numero di neuroni per layer (nei range indicati), il learning rate, i dropout rate e la batch size. Il migliore modello viene selezionato in base alla minore *loss* registrata sul validation set (default=20% del train set) Al termine dell'apprendimento un report dei vari trials verrà salvato in *stat* e il modello migliore risultante in *model* (entrambi i path sono indicati in config.py)
+This will load and pre-process the dataset, train the network on the indicated sets with hyperparameter optimization and subsequently test it. Specifically, the number of neurons per layer (in the indicated ranges), learning rate, dropout rates and batch size will be optimized. The best model is selected based on the lowest *loss* recorded on the validation set (default=20% of the train set) At the end of the learning a report of the various trials will be saved in *stat* and the resulting best model in *model* (both paths are given in config.py)
 
-### Testing di un modello
+### Model testing
 
-Impostare il valore *training=False*, il valore di *test_set* con il nome del dataset da utilizzare per il testing, il valore di *model_name* col nome del modello presente in *model* da testare e il valore di *apply_rescaling*
-a *True* (consigliato) in caso si voglia applicare il rescaling sul dataset di input, altrimenti a *False*.
-In caso si voglia attuare il testing con fine tuning, si imposti il valore di *fine_tuning* a *0* per utilizzare tutte le pseudo-etichette, 
-*1* per utilizzare la selezione per percentuale (e assegnando a *pseudo_percentage* la quantità desiderata),
-*2* per utilizzare la selezione per raggio (e assegnando a *pseudo_radius* il raggio desiderato). Altrimenti, per eseguire il testing senza tuning, si imposti *fine_tuning=-1*
+Set the value of *training=False*, the value of *test_set* with the name of the dataset to be used for testing, the value of *model_name* with the name of the model in *model* to be tested, and the value of *apply_rescaling*
+to *True* (recommended) in case you want to apply rescaling on the input dataset, otherwise to *False*.
+In case you want to implement testing with fine tuning, set the value of *fine_tuning* to *0* to use all pseudo-labels, 
+*1* to use selection by percentage (and assigning *pseudo_percentage* the desired amount),
+*2* to use selection by radius (and assigning *pseudo_radius* the desired radius). Otherwise, to perform testing without tuning, set *fine_tuning=-1*
 
-Dopodichè si può lanciare nuovamente main.py con il comando precedente.
+After that you can run main.py again with the previous command.
 
-In questo modo sarà avviato il caricamento e pre-processing del test dataset, il caricamento del modello, l'applicazione del fine tuning (se richiesta) e, infine, l'esecuzione della predizione sul test set indicato.
-In *stat* verranno generati un file .csv contenente le statistiche relative al testing con e senza correzione spaziale, una mappa del calore che rappresenta le distanze calcolate dalla rete per la coppia di immagini e due immagini contenenti le mappe predette (con e senza correzione). Queste due presentano la mappa predetta (*Total Prediction*), la stessa con una maschera che copra i pixel ignoti (*Comparable Preditiction*) e la *ground truth*. Il codice cromatico stabilisce che i pixel rossi indichino cambiamento, quelli blu non-cambiamento e quelli gialli non posseggono verità di fondo. 
+This will initiate the loading and pre-processing of the test dataset, the loading of the model, the application of fine tuning (if required), and finally the execution of the prediction on the given test set.
+A .csv file containing the testing statistics with and without spatial correction, a heat map representing the distances calculated by the network for the pair of images, and two images containing the predicted maps (with and without correction) will be generated in *stat*. These maps present the predicted map (*Total Prediction*), the same with a mask covering the unknown pixels (*Comparable Prediction*) and the *ground truth*. The color code states that red pixels indicate change, blue pixels indicate no change, and yellow pixels possess no ground truth. 
 
-### Generazione delle pseudo-etichette
-Impostare il valore di *train_set* con il nome del dataset da utilizzare per calcolare le pseudo-etichette, il valore di *distance* con "*ED*" o "*SAM*" in base alla funzione di distanza che si vuole utilizzare per il calcolo, il valore di *apply_rescaling* a *True* o *False*, in caso si voglia o meno applicare il rescaling sul dataset in input. 
-A questo punto sarà possibile lanciare predutils.py senza altri argomenti
+### Pseudo-labels generation
+Set the value of *train_set* with the name of the dataset to be used to calculate the pseudo-labels, the value of *distance* with "*ED*" or "*SAM*" depending on the distance function you want to use for the calculation, the value of *apply_rescaling* to *True* or *False*, in case you want to apply rescaling on the input dataset or not. 
+At this point you will be able to run predutils.py without any other arguments
     
     python3 predutils.py
-Le pseudo etichette verranno generate applicando la distanza scelta sulla coppia di immagini e ricavando la soglia di conversione con il metodo Otsu. Saranno poi salvate nel percorso "pseudoPath" del dataset, ciascuna con il nome della coppia di immagini di riferimento, come file .pickle. In *stat* inoltre verranno raccolte le mappe e le statistiche relative alle pseudo-etichette, con e senza correzione spaziale (raggio di default=3).
+The pseudo labels will be generated by applying the chosen distance on the image pair and deriving the conversion threshold using the Otsu method. They will then be saved in the "pseudoPath" path of the dataset, each with the name of the reference image pair, as a .pickle file. In *stat* also will be collected the maps and statistics for the pseudo-labels, with and without spatial correction (default radius=3).
 
-### Generazione dei plot di pseudo-etichette
-In caso si voglia visualizzare la distribuzione delle etichette estratte con i metodi per vicinato o per percentuale, si imposti il valore di *train_set* con il nome del dataset di cui stampare le pseudo etichette. Poi se si vuole un plot delle mappe estratte per percentuale, si lanci labelbyperc_generation.py:
+### Pseudo-labels plotting
+In case you want to display the distribution of the labels extracted by the methods by neighborhood or by percentage, you can set the value of *train_set* with the name of the dataset whose pseudo labels are to be printed. Then if you want a plot of the extracted maps by percentage, you can launch labelbyperc_generation.py:
 
     python3 labelbyperc_generation.py
-e in *stat* verranno generate tutte le mappe contenenti dal 10% al 90% delle migliori pseudo-etichette, con una differenza del 10% tra una immagine e l'altra.
-<br>Diversamente per un plot delle mappe estratte per raggio, si imposti *pseudo_radius* con il valore massimo di raggio da considerare per il plotting, e si lanci labelbyneigh_generation.py:
+all maps containing 10% to 90% of the best pseudo-labels will be generated in *stat*, with a 10% difference between each image.
+<br>Differently for the plot of maps extracted by radius, set *pseudo_radius* with the maximum radius value to be considered for plotting, and run labelbyneigh_generation.py:
 
     python3 labelbyneigh_generation.py
 
-In *stat* verranno generate tutte le mappe ottenute con estrazione per vicinato dal raggio 2, al raggio impostato.<br>
-Il formato di entrambe le immagini comprende una mappa con le sole etichette di cambiamento (*C label*), una con le sole etichette di non cambiamento (*N label*) e una con entrambe (*NC label*). Il giallo indica i pixel esclusi.
+All the maps obtained by extraction by neighborhood from radius=2 to the chosen radius will be generated in *stat*.
+The format of both images includes one map with only change labels (*C label*), one with only no-change labels (*N label*) and one with both (*NC label*). Yellow indicates the excluded pixels.
+
+#### Pre-processing
+
+During the preprocessing phase, the data contained in the dataset are organized into arrays of triples (pixel A, pixel B, label), normalized to [0, 1] through MinMax. the labels undergo refactoring of the values so that they are always logically consistent with the algorithms used (i.e., changed pixels are labeled with "0," unchanged pixels with "1," and unknown pixels with "2"). In addition, the images are also cleaned of any unlabeled pairs (in case of training).
+This phase is implemented before any training or testing phase.
 
 
-#### Preprocessing
+#### Evaluation 
 
-Durante la fase di preprocessing i dati contenuti nel dataset vengono organizzati in array triple (pixel A, pixel B, etichetta), normalizzati in [0, 1] attraverso MinMax, e le etichette subiscono un refactoring dei valori in modo da essere sempre logicamente consistenti con gli algoritmi utilizzati (i.e. i pixel cambiati vengono etichettati con "0", quelli non cambiati con "1" e quelli ignoti con "2"). Inoltre, le immagini vengono anche ripulite da eventuali coppie non etichettate (in caso di training).
-Questa fase viene attuata prima di ogni fase di training o testing.
+The final evaluation of the performance of individual models is done using a confusion matrix constructed through the real labels of the examples, loaded together with the pairs, and the Siamese Network predictions. Values reported as "true positives" are the correctly predicted changed pixels, "true negatives" are the correctly predicted unchanged pixels, "false positives" are the unchanged pixels predicted as changed, and "false negatives" are the changed pixels predicted as unchanged. In the case of testing, the matrix is constructed both before and after performing the spatial correction (with default radius=3) on the labels predicted by the network, so that *Overall Accuracy* can be calculated at both times with respect to both ground truth and pseudo-labels, where used. Differently for the values calculated on the *validation set* or the *test set during training*, the calculation is performed without the spatial correction.
 
-
-#### Valutazione 
-
-La valutazione finale delle prestazioni dei singoli modelli viene effettuata mediante matrice di confusione costruita attraverso le etichette reali degli esempi, caricate assieme alle coppie, e le predizioni della Rete siamese. I valori riportati come "veri positivi" sono i pixel cambiati correttamente predetti, i "veri negativi" sono i pixel non cambiati correttamente predetti, i "falsi positivi" sono i pixel non cambiati predetti come cambiati e i "falsi negativi" sono i pixel cambiati predetti come non cambiati. In caso di test, la matrice viene costruita sia prima che dopo l'esecuzione della correzione spaziale (con raggio di default=3) sulle etichette predette dalla rete, in modo da poter calcolare l'*Overall Accuracy* in entrambi i momenti sia rispetto alla ground truth, sia rispetto alle pseudo-etichette, ove utilizzate. Diversamente per il valore calcolato sul *validation set* o sul *test set durante il training*, il calcolo viene eseguito senza la correzione spaziale.
-
-Un altro criterio di valutazione è dato dal tempo impiegato nell'esecuzione dei vari passaggi, registrato sempre in secondi. Nei file .csv ottenuti dal training è presente il campo *time* che indica il tempo impiegato per l'esecuzione della singola *run*.
-Nei file .csv delle pseudo etichette sono presenti *generation_time* e *correction_time* che indicano rispettivamente i tempi di generazione e di applicazione della correzione spaziale.
-Nei file. csv ottenuti dal testing sono presenti i campi:
+Another evaluation criterion is the time taken in the execution of the various steps, always recorded in seconds. In the .csv files obtained from the training there is a *time* field indicating the time taken to execute the single *run*.
+In the .csv files of the pseudo labels, there are *generation_time* and *correction_time* that indicate the generation and application times of the spatial correction, respectively.
+In the .csv files obtained from testing, the fields are present:
     
-    prediction_time: tempo impiegato dalla sola predizione
-    extraction_time: tempo impiegato per l'esecuzione di uno dei due algoritmi di selezione.
-                     Per la selezione per vicinato viene compreso anche il tempo per eseguire 
-                     la correzione spaziale
-    correction_time: tempo impiegato per la correzione spaziale sulla mappa predetta
-    ft_time:         tempo impiegato per l'esecuzione del fine tuning
+    prediction_time: time elapsed for the prediction
+    extraction_time: time elapsed for the execution of the pseudo-labels extraction algorithms.
+                     For the extraction by neighborhood it considers also the time for the spatial correction.  
+    correction_time: Time elapsed for the spatial correction on the predicted map.
+    ft_time:         time elapsed for the finetuning
 
-#### File necessari all'utilizzo degli script
+#### Required files for script execution
 
-Per rendere possibile l'esecuzione del training o la generazione delle pseudo-etichette sono necessari i seguenti file:
+The following files are required to make it possible to run the training or generate the pseudo-labels:
 
-* Il dataset contenente le immagini divise in cartelle tra "prima", "dopo" ed "etichette"  in *data/nome_dataset/*
+* The dataset containing the images divided into folders between "before," "after," and "labels" in *data/name_dataset/*
 
-Per l'esecuzione del testing invece sono in più necessari i seguenti file:
-* Il modello da testare all'interno di *model*, come coppia di file *nomemodello.h5* e *nomemodello_param.pickle*.
-* Qualora si voglia applicare il fine tuning, le pseudo etichette come file *nomeimmagine.pickle* nella cartella dedicata alle pseudo-etichette del dataset di riferimento.
+Instead, the following files are additionally required for running the testing:
+*The model to be tested in *model*, as a pair of files *model_name.h5* and *model_param.pickle*.
+* If fine tuning is to be applied, the pseudo-labels as a *imagename.pickle* file in the dedicated pseudo-label folder of the reference dataset.
 
-I file delle pseudo etichette sono necessari anche in caso si voglia eseguire il plot con gli script *"labelby"*.
+The pseudo-label files are also needed in case you want to plot them with *"labelby "* scripts.
 
-### Script e funzioni principali
-Si propone una panoramica degli script e delle funzioni principali. Per maggiori dettagli, riferirsi ai commenti nel codice.
+### Script and main functions
+An overview of the main scripts and functions is proposed. For more details, refer to the comments in the code.
 
 #### config.py
-Questo file contiene tutte le costanti "interne" al programma, come le label utilizzate, il margine per la loss, lo split per il *validation*, i percorsi per il file di configurazione, quello per il salvataggio dei modelli e quello per il salvataggio dei log. Contiene anche le variabili utilizzate per passare i dataset e le impostazioni alla funzione che esegue la ricerca degli iperparametri.
+This file contains all the constants "internal" to the program, such as the labels used, the margin for loss, the split for *validation*, the paths to the configuration file, the one for saving models, and the one for saving logs. It also contains the variables used to pass datasets and settings to the function that performs the hyperparameter search.
 
 #### dataprocessing.py
-Questo modulo contiene le funzioni necessarie al caricamento e al preprocessing del dataset.<br> La funzione **load_dataset(name, conf)** permette di caricare un dataset con nome "name" (elencato tra quelli in *net.conf*) e con le configurazioni lette dal parser "conf" in input. Lo restituisce sottoforma di lista di immagini "prima", lista di immagini "dopo", lista delle etichette e lista dei nomi delle coppie. Attualmente, può solo caricare immagini in ".mat" e in “.tif” se decompresse (ovvero ogni immagine conta come un un vettore di pixel per una banda). Per caricare i file “.tif”, essi devono essere posti in cartelle con lo stesso nome delle etichette (compresi di estensione) e ciascuna banda deve avere il nome nel corretto ordine alfanumerico (i.e. prima banda => B01, seconda banda=>B02…).<br> 
-La funzione **preprocessing(..., conf_section, keep_unlabeled, apply_rescaling)** prende in input i risultati di *load_dataset* (...) e ,utilizzando le informazioni passate dal parser *conf_section*, esegue il pre-processing del dataset. Ciò viene fatto linearizzando le immagini, eseguendo il MinMax sulla concatenazione di queste (se *apply_rescaling=True*), cambiando le etichette e generando i due array delle coppie di pixel e le rispettive etichette, eventualmente rimuovendo quelle ignote (se *keep_unlabeled*=False). Il risultato è un unico array contenente tutte le coppie di pixel di tutte le immagini, assieme al corrispettivo array delle etichette.
+This module contains loading and pre-processing functions for the datasets. <br> **load_dataset(name, conf)** allows to load a dataset named "name" (listed in *net.conf*) with the configuration read from the parser "conf". It returns it as a list of "before" images, a list of "after" images, label list and pair name list. Currently, it can load only images in uncompressed ".mat" and ".tif" format (each image counts as a pixel array for a band). To load ".tif" files, they must be placed in folders with the same name of the label files (with extension) and each band must have the name in the correct alphanumeric order (i.e. first band=>B01, second band => B02...). <br> 
+**preprocessing(..., conf_section, keep_unlabeled, apply_rescaling)** takes as input the outputs of *load_dataset* (...) and, using the information passed by the parser*conf_section*, applies pre-processing to the dataset. It includes image linearization, MinMaxing on the concatenation of the latter (if *apply_rescaling=True*), changing the labels and generating the two arrays of pixel pairs and respective labels, eventually removing unlabeled pairs (if *keep_unlabeled*=False). The output is a single array containing all the pixel pairs of all the images, together with the respective label array.
 
 #### labelbyneigh_generation.py
-Script per la generazione dei plot delle etichette estratte per vicinato con raggio variabile. Fa utilizzo della funzione di estrazione inserita in predutils.py
+Script for generating plots of extracted labels by neighborhood with variable radius. Makes use of the extraction function included in predutils.py
 
 #### labelbyperc_generation.py
-Script per la generazione dei plot delle etichette estratte per vicinato con percentuale variabile. Fa utilizzo della funzione di estrazione inserita in predutils.py per ottenere le coppie di pixel in ordine di distanza (crescente per quelle cambiate, decrescente per quelle non cambiate) e genera poi i plot da esse.
+Script for generating plots of extracted labels by neighborhood with variable percentage. Makes use of the extraction function included in predutils.py to get the pairs of pixels ordered by distance  (increasing for those changed, decreasing for those not changed) and then generates plots from them.
 
 #### main.py
-Script principale per l'esecuzione del training o del testing di un modello. Il suo utilizzo è già stato discusso nel corso di questa guida.
+Main script for performing training or testing of a model. Its use has already been discussed throughout this guide.
 
 #### predutils.py
-Modulo contenente le funzioni di utility per la predizione, nonchè lo script di generazione delle pseudo-etichette.<br>
-La funzione **spatial_correction(prediction, radius)** esegue la correzione spaziale sulla predizione in input (già riorganizzata in un array bidimensionale), facendo scorrere un kernel di raggio *radius* e riassegnando ad ogni pixel la classe predominante all'interno di esso. In caso di parità, si mantiene la classe originale. <br>
-La funzione **pseudo_labels(first_img, second_img, dist_function, return_distances)** permette di ricavare le pseudo etichette dalla coppia di immagini *(first_img, second_img)* con la funzione di distanza *dist_function*. Ciascuna immagine ha 2 dimensioni (altezza x larghezza, bande spettrali). Si può decidere di ottenere direttamente la mappa delle pseudo etichette e la soglia ricavata ponendo *return_distances=False*, oppure ottenere la mappa delle distanze, ponendo *return_distances=True*. <br>
-La funzione **labels_by_percentage(pseudo_dict, percentage)** estrae da una mappa di pseudo etichette *pseudo_dict* in formato dizionario (vedi sezione Pseudo-etichette) una percentuale indicata da *percentage* (float in ]0, 1]) delle migliori etichette. La misura di bontà considerata è la distanza tra i due pixel: tanto più è estrema, tanto più sarà certa la classificazione. La funzione, quindi, ordina i pixel cambiati in maniera decrescente in base alla distanza e quelli non cambiati in maniera crescente. Dopodichè viene eseguito un "taglio" e restituiti due array contenenti le posizioni della migliore percentuale coppie e le relative etichette.<br>
-La funzione **labels_by_neighborhood(pseudo_dict, radius)** estrae da una mappa di pseudo etichette *pseudo_dict* in formato dizionario (vedi sezione Pseudo-etichette) le migliori etichette. La misura di bontà considerata è la presenza pixel diversi in un vicinato quadrato di raggio *radius*. Se è presente almeno un pixel di classe diversa, il pixel centrale viene scartato. La funzione quindi scandisce l'immagine, rimuove i pixel spuri e restituisce due array contenenti le posizioni delle migliori coppie e le relative etichette.<br>
+Module containing the utility functions for prediction as well as the pseudo-label generation script.<br>
+**spatial_correction(prediction, radius)** performs spatial correction on the input prediction (already rearranged into a two-dimensional array) by running a kernel of radius *radius* and reassigning to each pixel the predominant class within it. In case of tie, the original class is kept. <br>
+**pseudo_labels(first_img, second_img, dist_function, return_distances)** allows pseudo labels to be derived from the pair of images *(first_img, second_img)* with the distance function *dist_function*. Each image has 2 dimensions (height x width, spectral bands). You can decide to get the pseudo label map and the derived threshold directly by setting *return_distances=False*, or get the distance map by setting *return_distances=True*.  <br>
+**labels_by_percentage(pseudo_dict, percentage)** extracts from a map of pseudo-labels *pseudo_dict* in dictionary format (see section Pseudo-labels) a percentage indicated by *percentage* (float in ]0, 1]) of the best labels. The measure of goodness considered is the distance between the two pixels: the more extreme it is, the more certain the classification will be. The function, then, sorts the changed pixels in descending order by distance and the unchanged pixels ascending order. After that, a "cut" is performed and two arrays containing the positions of the best percentage pairs and their labels are returned.<br>
+**labels_by_neighborhood(pseudo_dict, radius)** extracts from a map of pseudo-labels *pseudo_dict* in dictionary format (see section Pseudo-labels) the best labels. The considered measure is the presence of different pixels in a square neighborhood of radius *radius*. If at least one pixel of different class is present, the middle pixel is discarded. The function then scans the image, removes spurious pixels, and returns two arrays containing the positions of the best pairs and their labels.<br>
+
 #### siamese.py
-Questo modulo contiene tutte le funzioni principali utili alla costruzione, apprendimento e *fine tuning* del modello di Rete Siamese.<br>
-La funzione **hyperparam_search(train_set, train_labels, test_set, test_labels, distance_function, name, hyperas_search)** permette di effettuare il training con ottimizzazione degli iperparametri attraverso Hyperas sul train set indicato, con la funzione di distanza e le impostazioni passate in input. Viene anche eseguito, ad ogni iterata, un test sul set indicato e al termine dell'apprendimento la funzione salva le statistiche dei vari trial in un file .csv e il miglior modello risultante . Esso è scelto in base al più basso valore di loss sul *validation set*. Il parametro "name" indica il nome da dare al modello salvato.<br>
-La funzione **siamese_model(train_set, train_labels, test_set, test_labels, score_function)**
-è quella che effettua la costruzione, il training e il testing del modello per ciascuna iterata Hyperas. Restituisce infatti un dizionario contenenti le metriche registrate nella run corrente, secondo la sintassi di Hyperas (Si rimanda alla documentazione della libreria per maggiori info). L'apprendimento viene eseguito su un massimo di 150 iterate con un *EarlyStopping callback*, ovvero il training si interrompe se entro un numero di epoche (impostato a 10) la metrica tenuta sotto controllo (la loss sul *validation set*) esibisce miglioramenti.<br>
-La funzione **build_net(input_shape, parameters)** costruisce e compila un modello di rete neurale utilizzando le librerie funzionali di Keras. La funzione viene sia utilizzata in fase di training che in fase di caricamento di un modello salvato. In input richiede la *shape* del singolo input e un dizionario contenente i parametri da applicare per la costruzione. I contenuti del dizionario sono descritti nella sezione **Modello**.
-La funzione **fine_tuning(model, batch_size, x_retrain, pseudo_labels)** si occupa di ri-eseguire il training del modello *model*, sul dataset e le pseudo-etichette passati in input. Restituisce, oltre al modello ri-addestrato, i valori di loss su *train e valdation set*, l'accuracy sul *validation*, il numero di epoche e il tempo impiegato per il *re-train*.
+This module contains all the main functions useful for building, learning and *fine tuning* the Siamese Network model.<br>
+**hyperparam_search(train_set, train_labels, test_set, test_labels, distance_function, name, hyperas_search)** allows training with hyperparameter optimization through Hyperas on the indicated train set, with the distance function and settings passed in as input. At each iteration a test is also run on the given set, and at the end of learning the function saves the statistics of the various trials in a .csv file and the resulting best model . It is chosen based on the lowest loss value on the *validation set*. The "name" parameter indicates the name to be given to the saved model.<br>
+**siamese_model(train_set, train_labels, test_set, test_labels, score_function)**
+ is the one that performs the construction, training and testing of the model for each Hyperas iteration. Returns a dictionary containing the metrics recorded in the current run, according to the Hyperas syntax (Refer to the library documentation for more info). Learning is performed over a maximum of 150 iterates with an *EarlyStopping callback*, i.e., training stops if within a number of epochs (set to 10) the metric being monitored (the loss on the *validation set*) does not exhibit improvement.<br>
+**build_net(input_shape, parameters)** builds and compiles a neural network model using the Keras functional API. The function is used both in the training phase and when loading a saved model. As input it requires the *shape* of the single input and a dictionary containing the parameters to be applied for construction. The contents of the dictionary are described in the **Model** section.<br>
+**fine_tuning(model, batch_size, x_retrain, pseudo_labels)** takes care of re-training the *model* model, on the dataset and pseudo-labels passed as input. It returns, in addition to the re-trained model, the loss values on *train and valdation set*, the accuracy on *validation*, the number of epochs, and the time taken for the *re-train*.

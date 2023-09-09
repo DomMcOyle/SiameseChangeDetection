@@ -1,0 +1,91 @@
+Contents of "data":
+	data is the folder used by the scripts as a container for unprocessed datasets.
+	Each subfolder, in fact contains one dataset. Currently there are the subfolders "bayarea" and "santabarbara".
+	Inside each subfolder the dataset is divided into four folders, one containing the "before" images, one the "after" images
+	one the labels ("labels") and one the pseudo-labels ("pseudo").
+	Each pair of images should be a file (or a folder containing the values of the various bands) with the same name for its constituent images,
+	for the labels and for the pseudo-labels
+
+Contents of "model":
+	model is the folder used to upload or save the Siamese Network models created. Inside there is model.old, 
+	which presents all the models created during the performed experiments. Each model is serialized as a pair of files
+	namemodel.h5 and namemodel_param.pickle.
+
+	Contents of "model.old":
+	model.old is organized in a subfolder system:
+	"1. Esperiments without hyperas":
+		contains the models obtained before implementing the Hyperas search. The networks have 3 layers of 224, 128 and 64 neurons learned in 10 epochs
+		with a batch size of 64
+	"2. Base structure + dropout (no Otsu)":
+		contains the "base" models of the first experiment with Hyperas. The networks have 3 layers of 224, 128 and 64 neurons, interspersed with 2 dropout layers and using
+		margin for loss equal to 1 and conversion threshold fixed at 0.5. This experiment presents optimization of batch size, learning rate and dropout rates (as for the next experiments) using 20 search iterations, each of max. 150 epochs.
+	"3. Base structure + dropout + correct margin + Otsu":
+		contains the models obtained from the second Hyperas experiment. The difference with the previous experiment lies in having also used the margin pi/2
+		for structures with SAM and the otsu threshold for calculating validation and test metrics. It also contains an experiment with gradient clipping (clip) and 
+		one with rescaling of SAM results in [0,1] (resc), performed to try to stabilize these models.
+	"4. Neuron choice":
+		It contains the models obtained by having the number of neurons also optimized between 256, 128, 64. From this experiment the search iterates were increased from 20 to 30.
+	"5. Neuron choice + Fourth layer":
+		It contains the models obtained by having the number of neurons per layer optimized and adding a fourth layer with 512-neuron sigmoidal activation.
+	"6. Descending order neuron choice":
+		Contains models obtained by having the number of neurons optimized in descending order, choosing between 512 and 256 for the first level, 256 and 128 for the second,
+		128 and 64 for the third.
+	"7. Descending order neuron choice + Fourth layer":
+		It contains the models obtained by having the number of neurons optimized in descending order and adding the fourth layer with sigmoidal activation from 512 neurons.
+	"8. Base structure + Fourth layer":
+		Contains the models with the same structure as the models in folder 3. plus the fourth layer with 512-neuron sigmoidal activation.
+	"9. No rescaling (SAM)":
+		It contains the learned models with SAM distance and structure equal to that of the models in folder 3, but without applying rescaling on the input data.
+	"10. No rescaling + Fourth layer (SAM)":
+		It contains the learned models with SAM distance and structure equal to that of the models in folder 8, but without applying rescaling on the input data.
+	"11. L2 Regularization (ED)":
+		It contains the learned model with Euclidean distance and structure equal to that of the models in folder 3, but with an L2 regularizer on the third layer.
+	"12. Base structure + increased Batch Size (SAM)":
+		It contains the learned models with the same structure as the models in folder 3, but having the batch size chosen from 128, 256, and 512.
+		From this experiment  on the search iterates were increased from 30 to 50.
+	"13. Base structure + increased Batch Size + decreased dropout (SAM)"
+		Contains learned models like those in folder 12, but additionally choosing the dropout rate in [0,0.25] instead of [0,0.5]
+	"14. Selected structure for multispectral datasets"
+		contains the models learned on the onera dataset images with the structure selected for fine tuning
+		i.e., the one described for folder "2." Models with suffix "medium" have number of neurons in the
+		three levels equal to 32/16/8, while the models with suffix "small" have number of neurons 13/8/4.
+		They are also divided according to the pair of images chosen for training.
+	"selected models":
+		Contains a copy of the models selected for fine tuning.
+		
+Contents of stat:
+	stat is the folder used to save .csv and plots on training and test results. Inside there is stat.old, 
+	which presents all the files containing the saved statistics of the experiments performed.
+	
+	contents of stat.old:
+	stat.old is organized in a subfolder system similar to that of model.old. In fact, there are folders with the same name as folders 1 through 14.
+	Folder 1. contains only the files with overall accuracy and confusion matrix obtained during testing.
+	Folders 2 through 14 contain the subfolder "training stat" which contains the namemodel_stats.csv generated as a result of the respective training phase.
+	In addition to that subfolder they then present a .csv file for each test that contains the statistics and two plot files of the predictions with and without spatial correction.
+	Generally such files have names of the type testdataset_[image_name]on_model_name[_suffix]. The "suffix" distinguishes plots with spatial correction (corrected) and 
+	heatmaps (heatmap), present from folder 3 onward.
+	Some of these folders may have subfolders that group experiments by pair (model, test set).
+	The additional folders are:
+	"15. Pseudo-labels results": 
+		Contains three subfolders:
+			"Plot radius 2-5": contains all plots of the best pseudo-labels extracted by neighborhood with radius ranging from 2 to 5.
+			"pseudo plot any%": contains all plots of the best pseudo-labels extracted by percentage from 10% to 90% in 10% steps.
+			"pseudo_stat": contains .csv files and maps (with and without correction) of pseudo labels generated with SAM or Euclidean distance (ED), with or without rescaling (rescaling_True and rescaling_False) for each image
+	"16. Fine tuning results":
+		Contains four subfolders:
+			"fine tuning.old": contains .csv files (partials) and map plots run before selecting only models with Euclidean distance.
+			This folder is also divided into subfolders by model, which have results divided by extraction method. In the case of SAM models
+			they are also first subdivided by batch size used, as fine tuning was attempted with a larger batch size
+			than the training batch size.
+			"multispectral models": collects tuning statistics + tests and maps of models with and without
+			fine tuning of multispectral models. It is divided into subfolders as for the hyperspectral dataset
+			(see next folders)
+			"selected models 100% tuning": collects tuning statistics + tests and maps of models with fine tuining with all pseudo-labels.
+			"selected models with percentage": collects tuning statistics + tests and maps of models with fine tuining with pseudo-labels extracted
+			by percentage.
+			"selected models with radius": collects tuning statistics + tests and maps of models with fine tuining with extracted pseudo-labels 
+			by neighborhood.
+			"selected models no fine tuning": collects tuning statistics + tests and maps of models with no fine tuning
+	
+Contents of .idea, __pycache__, venv:
+	contain folders and files supporting the pycharm IDE
