@@ -1,6 +1,5 @@
 # Change Detection with Siamese Network and Transfer Learning
 
-Repository per il progetto di tesi "Sintesi di un approccio basato su Reti Siamesi per la scoperta del cambiamento in immagini iperspettrali co-registrate", A.A. 2020/2021.
 Repository for the paper "Siamese networks with transfer learning for change detection in sentinel-2 images" 
 (G. Andresini, A. Appice, D. Dell’Olio, D. Malerba, In Proceedings of the International Conference of the Italian Association for Artificial Intelligence, Virtual Event, 1–3 December 2021; Springer: Berlin/Heidelberg, Germany, 2022; pp. 478–489)
 
