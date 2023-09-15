@@ -3,6 +3,24 @@
 Repository for the paper "Siamese networks with transfer learning for change detection in sentinel-2 images" 
 (G. Andresini, A. Appice, D. Dell’Olio, D. Malerba, In Proceedings of the International Conference of the Italian Association for Artificial Intelligence, Virtual Event, 1–3 December 2021; Springer: Berlin/Heidelberg, Germany, 2022; pp. 478–489)
 
+Please cite our work if you find it useful for your research and work.
+
+```
+@inproceedings{10.1007/978-3-031-08421-8_33,
+author = {Andresini, Giuseppina and Appice, Annalisa and Dell’Olio, Domenico and Malerba, Donato},
+title = {Siamese Networks With Transfer Learning For Change Detection In Sentinel-2 Images},
+year = {2021},
+isbn = {978-3-031-08420-1},
+publisher = {Springer-Verlag},
+address = {Berlin, Heidelberg},
+doi = {10.1007/978-3-031-08421-8_33},
+booktitle = {AIxIA 2021 – Advances in Artificial Intelligence: 20th International Conference of the Italian Association for Artificial Intelligence, Virtual Event, December 1–3, 2021, Revised Selected Papers},
+pages = {478–489},
+numpages = {12}
+}
+
+```
+
 The dataset used is available at: shorturl.at/gtKO1
 ## Repository structure
 
